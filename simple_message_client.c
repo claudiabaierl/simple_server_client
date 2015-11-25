@@ -36,10 +36,19 @@ int main(int argc, char *argv[])
 		{
 			continue;
 		}
+		/* if connect is successful, break and close socket descriptor */
 		if(connect(socket_desc, rp->ai_addr, rp->ai_addrlen) != -1)
 			break;
 		close(sock_desc);
 	}
+
+	if(rp == NULL)
+	{
+		fprintf(stderr, "Could not connect to any address. \n");
+		exit(EXIT_FAILURE);
+	}
+
+	freeaddrinfo(client_info);
 
 
 
