@@ -1,3 +1,20 @@
+/**
+ * @file simple_message_client.c
+ *
+ * VCS TCP/IP Client
+ *
+ * @author: Claudia Baierl - ic14b003 <ic14b003@technikum-wien.at>
+ * @author: Zübide Sayici - ic14b002 <ic14b002@technikum-wien.at>
+ *
+ * @version $Revision: xxx $
+ *
+ * Last Modified: $Author: xxxxx $
+ */
+
+/*
+ * ----------------------------- includes -------------------------
+ */
+
 #include <stdio.h>
 #include <errno.h>
 #include <sys/types.h>
@@ -6,8 +23,32 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include "simple_message_client_commandline_handling.h"
+
+/*
+ * ---------------------------------- defines ------------------------
+ */
+
+/*
+ * ---------------------------------- globals ------------------------
+ */
 
 const char *prg_name;
+
+/*
+ * ---------------------------------- function prototypes ------------
+ */
+
+/**
+ *
+ * \brief Main function is the entry point for any C programme
+ *
+ * \param argc passes the number of arguments
+ * \param argv passes the arguments (programme name is argv[0]
+ *
+ * \return
+ *
+ */
 
 int main(int argc, char *argv[])
 {
@@ -19,6 +60,7 @@ int main(int argc, char *argv[])
 	int socket_desc;
 
 	prg_name = argv[0];
+
 
 
 	memset(&client_info, 0, sizeof(struct addrinfo));
