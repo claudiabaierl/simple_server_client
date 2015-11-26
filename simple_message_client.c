@@ -7,6 +7,8 @@
 #include <unistd.h>
 #include <string.h>
 
+const char *prg_name;
+
 int main(int argc, char *argv[])
 {
 
@@ -15,6 +17,8 @@ int main(int argc, char *argv[])
 	size_t length;
 	int addr_info;
 	int socket_desc;
+
+	prg_name = argv[0];
 
 
 	memset(&client_info, 0, sizeof(struct addrinfo));
