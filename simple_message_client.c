@@ -39,6 +39,10 @@ const char *prg_name;
  * ---------------------------------- function prototypes ------------
  */
 
+
+static void usage(FILE *out, const char *prg_name, int exit_status);
+
+
 /**
  *
  * \brief Main function is the entry point for any C programme
@@ -58,12 +62,18 @@ int main(int argc, char *argv[])
 	size_t length;
 	int addr_info;
 	int socket_desc;
+	const char *server = NULL;
+	const char *port = NULL;
+	const char *user = NULL;
+	const char *message = NULL;
+	const char *image = NULL;
 
 	prg_name = argv[0];
 
+	smc_parsecommandline(argc, argv, &usage, &server, &port, &user, &message, &image, &verbose);
 
 
-	memset(&client_info, 0, sizeof(struct addrinfo));
+	memset(&client_info, 0, sizeof(client_info));
 	client_info.ai_family = AF_UNSPEC;
 	client_info.ai_socktype = SOCK_STREAM;
 	client_info.ai_protocol = 0;
