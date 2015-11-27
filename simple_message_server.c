@@ -38,9 +38,15 @@
 
 const char *prg_name;
 
+
 /*
  * ---------------------------------- function prototypes ------------
  */
+
+void check_params(int argc, char *argv[]);
+void usage(FILE *stream, const char *command, int exit_status);
+void my_usage(void);
+void my_printf(char * format, ...);
 
 
 /**
@@ -61,7 +67,61 @@ int main(int argc, char *argv[])
 
 
 	prg_name = argv[0];
+	check_params(argc, argv);
 
 
 
+}
+
+void check_params(int argc, char *argv[])
+{
+
+	/* if less than three arguments are passed, the usage is not correct */
+	if (argc < 3)
+	{
+		my_usage();
+	}
+	else if (strcmp(argv[0], "simple_message_server") != 0)
+	{
+		my_usage();
+	}
+	else if(strcmp(argv[1], "-p") != 0)
+	{
+		my_usage();
+	}
+	else if(strcmp(argv[1], "-h") != 0)
+	{
+		my_usage();
+	}
+
+
+}
+
+void usage(FILE *stream, const char *command, int exit_status)
+{
+	fprintf(stream, "usage: %s <options>\n", command);
+	fprintf(stream, "options:\n");
+	fprintf(stream, "\t-p, \t--port <port>");
+	fprintf(stream, "\t-h, \t--help\n");
+	exit(exit_status);
+
+}
+void my_usage(void)
+{
+	myprintf("usage: %s <options>\n"
+			"\t-p, \t--port <port>"
+			"\t-h, \t--help\n", prg_name);
+	exit(EXIT_FAILURE);
+}
+
+void my_printf(char * format, ...)
+{
+	va_list args;
+
+	va_start(args, format);
+
+	if (vprintf(format, args) < 0)
+		error(1, 1, "%d", errno);
+
+	va_end(args);
 }
