@@ -41,6 +41,8 @@ const char *prg_name;
 
 
 static void usage(FILE *out, const char *prg_name, int exit_status);
+void my_printf(char *format, ...);
+
 
 
 /**
@@ -112,3 +114,23 @@ int main(int argc, char *argv[])
 
 
 }
+/**
+ *
+ * \brief Function error handling of printf
+ *
+ * \param format
+ *
+ *
+ */
+void printf_handling(char * format, ...)
+{
+	va_list args;
+
+	va_start(args, format);
+
+	if (vprintf(format, args) < 0)
+		error(1, 1, "%d", errno);
+
+	va_end(args);
+}
+
