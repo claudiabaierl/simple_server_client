@@ -34,6 +34,7 @@
  */
 
 const char *prg_name;
+int verbose;
 
 /*
  * ---------------------------------- function prototypes ------------
@@ -41,6 +42,7 @@ const char *prg_name;
 
 
 static void usage(FILE *out, const char *prg_name, int exit_status);
+void logger(char *message);
 void my_printf(char *format, ...);
 
 
@@ -62,8 +64,9 @@ int main(int argc, char *argv[])
 	struct addrinfo client_info;
 	struct addrinfo *set_info, *rp;
 	size_t length;
-	int addr_info;
+	int check;
 	int socket_desc;
+	int connect_socket;
 	const char *server = NULL;
 	const char *port = NULL;
 	const char *user = NULL;
@@ -80,32 +83,41 @@ int main(int argc, char *argv[])
 	client_info.ai_socktype = SOCK_STREAM;
 	client_info.ai_protocol = 0;
 
-	add_info = getaddrinfo(argv[1], argv[2], &client_info, &set_info);
-	if(s != 0)
+	check = getaddrinfo(server, port, &client_info, &set_info);
+	if(check != 0)
 	{
-		fprintf(stderr, "getaddrinfo failed: %s\n", gai_sterror(s));
-		exit(EXIT_FAILURE);
+		fprintf(stderr, "%s: getaddrinfo failed: %s\n", prg_name, gai_sterror(check));
+		return EXIT_FAILURE;
 	}
 
+	/* go through all he results and connect if possible - if not, try the next one */
 	for (rp = set_info; rp != NULL, rp = rp->ai_next)
 	{
-		sockt_desc = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
-		if (sock_desc == -1)
+		socket_desc = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+		if (socket_desc == -1)
 		{
+			logger("socket");
 			continue;
 		}
 		/* if connect is successful, break and close socket descriptor */
-		if(connect(socket_desc, rp->ai_addr, rp->ai_addrlen) != -1)
+		connect_socket = connect(socket_desc, rp->ai_addr, rp->ai_addrlen);
+		if(connect_socket == -1)
+		{
+			logger("connect");
+			close(socket_desc);
+			continue;
+		}
+		else
 			break;
-		close(sock_desc);
 	}
 
 	if(rp == NULL)
 	{
-		fprintf(stderr, "Could not connect to any address. \n");
-		exit(EXIT_FAILURE);
+		fprintf(stderr, "%s: could not connect to any address.\n", prg_name);
+		freeaddrinfo(client_info);
+		return EXIT_FAILURE;
 	}
-
+	/* is no longer needed */
 	freeaddrinfo(client_info);
 
 
@@ -114,6 +126,15 @@ int main(int argc, char *argv[])
 
 
 }
+/**
+ * \brief a function pointer to a function which is called from smc_parsecommandline() if the user enters wrong
+ *        parameters.
+ *        The type of  this  function pointer is: typedef void (* smc_usagefunc_t) (FILE *, const char *, int);
+ *
+ * \param out      - specifies if ouput is STDOUT or STDIN
+ * \param prg_name  - a constant character array containing the name of the executed programme  (i.e., the contents of argv[0]).
+ * \param exit_status - the exit code to be used in the call to exit(exit_status) for terminating the programme.
+ */
 static void usage(FILE *out, const char *prg_name, int exit_status)
 {
 	my_printf("Usage: %s options\n"
@@ -136,6 +157,20 @@ static void usage(FILE *out, const char *prg_name, int exit_status)
  *
  *
  */
+void logger(char *message)
+{
+	int j = 0;
+	if (verbose == TRUE)
+	{
+		j = fprintf(stdout, "%s: %s\n", prg, message);
+
+		/* if printig to stdout fails, a negative value is returned */
+		if(j < 0)
+		{
+			fprintf(stderr, "Can not print to stdout.\n");
+		}
+	}
+}
 void my_printf(char * format, ...)
 {
 	va_list args;
