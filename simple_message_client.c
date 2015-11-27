@@ -137,15 +137,15 @@ int main(int argc, char *argv[])
  */
 static void usage(FILE *out, const char *prg_name, int exit_status)
 {
-	my_printf("Usage: %s options\n"
-			"options:"
-			"\t -s, --server <server>\t full qualified domain name or IP address of the server\n"
-			"\t -p, --port <port>\t well-known port of the server [0..65535]\n"
-			"\t -u, --user <name>\t name of the posting user\n"
-			"\t -i, --image <URL>\t URL pointing to an image of the posting user\n"
-			"\t -m, --message <message>\t messag to be added to the bulletin board\n"
-			"\t -v, --verbose\t verbose output\n"
-			"\t -h, --help\n", prg_name);
+	fprintf(out,"usage: %s options\n",prg_name);
+	    fprintf(out,"options:\n");
+	    fprintf(out,"\t-s, --server <server>   full qualified domain name or IP address of the server\n");
+	    fprintf(out,"\t-p, --port <port>       well-known port of the server [0..65535]\n");
+	    fprintf(out,"\t-u, --user <name>       name of the posting user\n");
+	    fprintf(out,"\t-i, --image <URL>       URL pointing to an image of the posting user\n");
+	    fprintf(out,"\t-m, --message <message> message to be added to the bulletin board\n");
+	    fprintf(out,"\t-v, --verbose           verbose output (for debugging purpose)\n");
+	    fprintf(out,"\t-h, --help\n");
 
 	exit(exit_status);
 }
