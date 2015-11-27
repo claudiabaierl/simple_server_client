@@ -114,6 +114,20 @@ int main(int argc, char *argv[])
 
 
 }
+static void usage(FILE *out, const char *prg_name, int exit_status)
+{
+	my_printf("Usage: %s options\n"
+			"options:"
+			"\t -s, --server <server>\t full qualified domain name or IP address of the server\n"
+			"\t -p, --port <port>\t well-known port of the server [0..65535]\n"
+			"\t -u, --user <name>\t name of the posting user\n"
+			"\t -i, --image <URL>\t URL pointing to an image of the posting user\n"
+			"\t -m, --message <message>\t messag to be added to the bulletin board\n"
+			"\t -v, --verbose\t verbose output\n"
+			"\t -h, --help\n", prg_name);
+
+	exit(exit_status);
+}
 /**
  *
  * \brief Function error handling of printf
@@ -122,7 +136,7 @@ int main(int argc, char *argv[])
  *
  *
  */
-void printf_handling(char * format, ...)
+void my_printf(char * format, ...)
 {
 	va_list args;
 
