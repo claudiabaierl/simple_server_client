@@ -81,10 +81,7 @@ int main(int argc, char *argv[])
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = AI_PASSIVE;
-	hints.ai_protocol = 0;
-	hints.ai_canonname = NULL;
-	hints.ai_addr = NULL;
-	hints.ai_next = NULL;
+
 
 	check = getaddrinfo(NULL, port, &hints, &server);
 	if(check != 0)
@@ -92,27 +89,38 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "%s: error getaddrinfo: %s\n", prog_name, gai_strerror(check));
 		return EXIT_FAILURE;
 	}
-	socket_desc = socket(server->ai_family, server->ai_socktype, server->ai_protocol);
-	if(socket_desc == -1)
+
+	for (rp = server; rp != NULL; rp = rp->ai_next)
 	{
-		fprintf(stderr, "%s: error socket: %s\n", prog_name, strerror(errno));
-		freeaddrinfo(server);
-		return EXIT_FAILURE;
+		socket_desc = socket(server->ai_family, server->ai_socktype, server->ai_protocol);
+		if(socket_desc == -1)
+		{
+			fprintf(stderr, "%s: error socket: %s\n", prog_name, strerror(errno));
+			freeaddrinfo(server);
+			return EXIT_FAILURE;
+		}
+
+		if(setsockopt(socket_desc, SOL_SOCKET, SO_REUSEADDR, 1, sizeof(int)) == -1)
+		{
+			fprintf(stderr, "%s: error setsockopt %s\n", prog_name, strerror(errno));
+			close(socket_desc);
+			freeaddrinfo(server);
+			return EXIT_FAILURE;
+		}
+		/* if bind is not successful, try with the next address */
+		if(bind(socket_desc, server->ai_addr, server->ai_addrlen) == -1)
+		{
+			fprintf(stderr, "%s: error bind %s\n", prog_name, strerror(errno));
+			close(socket_desc);
+			freeaddrinfo(server);
+			continue;
+		}
+		break;
 	}
 
-	if(setsockopt(socket_desc, SOL_SOCKET, SO_REUSEADDR, 1, sizeof(int)) == -1)
+	if(rp == NULL)
 	{
-		fprintf(stderr, "%s: error setsockopt %s\n", prog_name, strerror(errno));
-		close(socket_desc);
-		freeaddrinfo(server);
-		return EXIT_FAILURE;
-	}
-
-	if(bind(socket_desc, server->ai_addr, server->ai_addrlen) == -1)
-	{
-		fprintf(stderr, "%s: error bind %s\n", prog_name, strerror(errno));
-		close(socket_desc);
-		freeaddrinfo(server);
+		fprintf(stderr, "%s: server binding failed\n", prog_name);
 		return EXIT_FAILURE;
 	}
 
@@ -126,7 +134,31 @@ int main(int argc, char *argv[])
 		return EXIT_FAILURE;
 	}
 
+	/* loop until accept was successful */
+	while(true)
+	{
+		address_length = sizeof(address);
+		new_socket_desc = accept(socket_desc, (struct sockaddr *) &address, &address_length);
 
+		/* error handling for accept */
+		if(new_socket_desc == -1)
+		{
+			/* if the system call was interrupted by a signal that was caught before a valid connection was
+			 * established, continue */
+			if(errno == EINTR)
+			{
+				continue;
+			}
+			else
+			{
+				fprintf(stderr, "%s: error accept %s\n", prog_name, strerror(errno));
+				close(socket_desc);
+				return EXIT_FAILURE;
+			}
+		}
+	}
+
+	return EXIT_SUCCESS;
 
 }
 
@@ -165,7 +197,7 @@ void usage(FILE *stream, const char *command, int exit_status)
 }
 void my_usage(void)
 {
-	myprintf("usage: %s <options>\n"
+	my_printf("usage: %s <options>\n"
 			"\t-p, \t--port <port>"
 			"\t-h, \t--help\n", prg_name);
 	exit(EXIT_FAILURE);
