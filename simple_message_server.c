@@ -50,6 +50,7 @@ void check_params(int argc, char *argv[], const char **port);
 void my_usage(void);
 void my_printf(char * format, ...);
 void check_parameters_server(int argc, char *argv[], const char **port);
+void signal_child(int sig);
 
 
 /**
@@ -72,6 +73,7 @@ int main(int argc, char *argv[])
 	struct addrinfo *server, *rp;
 	int socket_desc, new_socket_desc;
 	int check;
+	int child;
 	struct sockaddr_storage address;
 	socklen_t address_length;
 	//ssize_t read;
@@ -162,6 +164,22 @@ int main(int argc, char *argv[])
 				return EXIT_FAILURE;
 			}
 		}
+
+		/* fork child process for execution of business logic */
+		child = fork();
+
+		if(child == -1)
+		{
+			close(new_socket_desc);
+			close(socket_desc);
+			fprintf(stderr, "%s: fork error %s\n", prg_name, strerror(errno));
+			return EXIT_FAILURE;
+		}
+		else if(child == 0)
+		{
+			close(socket_desc);
+
+		}
 	}
 
 	return EXIT_SUCCESS;
@@ -230,6 +248,14 @@ void check_parameters_server(int argc, char *argv[], const char **port)
 	{
 		my_usage();
 	}
+}
+
+void signal_child(int sig)
+{
+	/* to prevent warnings, no other use */
+	sig = sig;
+	/* wait for any child process and return immediately if no child has exited */
+	while(waitpid(-1, NULL, WNOHANG) > 0);
 }
 
 void my_usage(void)
