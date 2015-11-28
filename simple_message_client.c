@@ -24,7 +24,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <arpa/inet.h>
-#include <ctype.h>
+#include <error.h>
 #include <stdarg.h>
 #include "simple_message_client_commandline_handling.h"
 
@@ -61,7 +61,7 @@ void my_printf(char *format, ...);
  *
  */
 
-int main(int argc, char *argv[])
+int main(int argc, const char * const argv[])
 {
 
 	struct addrinfo client_info;
