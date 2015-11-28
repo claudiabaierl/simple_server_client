@@ -80,7 +80,7 @@ int main(int argc, char *argv[])
 	int y = 0;
 
 	prg_name = argv[0];
-	check_params(argc, argv, &port);
+	check_parameters_server(argc, argv, &port);
 
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_UNSPEC;
@@ -167,7 +167,7 @@ int main(int argc, char *argv[])
 	return EXIT_SUCCESS;
 
 }
-
+/* meine Alternative - darf aber wohl nicht verwendet werden wg. getopt, das verwendet werden muss */
 void check_params(int argc, char *argv[], const char **port)
 {
 
