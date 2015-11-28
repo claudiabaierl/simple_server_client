@@ -65,9 +65,66 @@ void my_printf(char * format, ...);
 int main(int argc, char *argv[])
 {
 
+	struct addrinfo hints;
+	struct addrinfo *server, *rp;
+	int socket_desc, new_socket_desc;
+	int check;
+	struct sockaddr_storage address;
+	socklen_t address_length;
+	ssize_t read;
+	const char *port;
 
 	prg_name = argv[0];
 	check_params(argc, argv);
+
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_flags = AI_PASSIVE;
+	hints.ai_protocol = 0;
+	hints.ai_canonname = NULL;
+	hints.ai_addr = NULL;
+	hints.ai_next = NULL;
+
+	check = getaddrinfo(NULL, port, &hints, &server);
+	if(check != 0)
+	{
+		fprintf(stderr, "%s: error getaddrinfo: %s\n", prog_name, gai_strerror(check));
+		return EXIT_FAILURE;
+	}
+	socket_desc = socket(server->ai_family, server->ai_socktype, server->ai_protocol);
+	if(socket_desc == -1)
+	{
+		fprintf(stderr, "%s: error socket: %s\n", prog_name, strerror(errno));
+		freeaddrinfo(server);
+		return EXIT_FAILURE;
+	}
+
+	if(setsockopt(socket_desc, SOL_SOCKET, SO_REUSEADDR, 1, sizeof(int)) == -1)
+	{
+		fprintf(stderr, "%s: error setsockopt %s\n", prog_name, strerror(errno));
+		close(socket_desc);
+		freeaddrinfo(server);
+		return EXIT_FAILURE;
+	}
+
+	if(bind(socket_desc, server->ai_addr, server->ai_addrlen) == -1)
+	{
+		fprintf(stderr, "%s: error bind %s\n", prog_name, strerror(errno));
+		close(socket_desc);
+		freeaddrinfo(server);
+		return EXIT_FAILURE;
+	}
+
+	freeaddrinfo(server);
+
+	/* listen on socket */
+	if(listen(socket_desc, LISTENQ) == -1)
+	{
+		fprintf(stderr, "%s: error because of too many connections %s\n", prog_name, strerror(errno));
+		close(socket_desc);
+		return EXIT_FAILURE;
+	}
 
 
 
