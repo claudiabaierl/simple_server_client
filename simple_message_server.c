@@ -46,10 +46,10 @@ const char *prg_name;
  * ---------------------------------- function prototypes ------------
  */
 
-void check_params(int argc, char *argv[]);
-void usage(FILE *stream, const char *command, int exit_status);
+void check_params(int argc, char *argv[], const char **port);
 void my_usage(void);
 void my_printf(char * format, ...);
+void check_parameters_server(int argc, char *argv[], const char **port);
 
 
 /**
@@ -75,11 +75,12 @@ int main(int argc, char *argv[])
 	struct sockaddr_storage address;
 	socklen_t address_length;
 	//ssize_t read;
+	/* server port number */
 	const char *port = NULL;
 	int y = 0;
 
 	prg_name = argv[0];
-	check_params(argc, argv);
+	check_params(argc, argv, &port);
 
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_UNSPEC;
@@ -87,7 +88,6 @@ int main(int argc, char *argv[])
 	hints.ai_flags = AI_PASSIVE;
 
 	y = 1;
-
 
 	check = getaddrinfo(NULL, port, &hints, &server);
 	if(check != 0)
@@ -168,43 +168,74 @@ int main(int argc, char *argv[])
 
 }
 
-void check_params(int argc, char *argv[])
+void check_params(int argc, char *argv[], const char **port)
 {
 
 	/* if less than three arguments are passed, the usage is not correct */
-	if (argc < 3)
+	if (argc < 2)
 	{
+		my_printf("Check argc\n");
 		my_usage();
 	}
-	else if (strcmp(argv[0], "simple_message_server") != 0)
+	else if ((strcmp(argv[0], "./simple_message_server")) != 0)
 	{
+		my_printf("Check arg 0");
 		my_usage();
 	}
-	else if(strcmp(argv[1], "-p") != 0)
+	else if(((strcmp(argv[1], "-h")) || (strcmp(argv[1], "--h")) || (strcmp(argv[1], "?"))) == 0)
 	{
+		my_printf("check for help \n");
 		my_usage();
 	}
-	else if(strcmp(argv[1], "-h") != 0)
+	else if(((strcmp(argv[1], "-p")) || (strcmp(argv[1], "--p"))) == 0)
 	{
-		my_usage();
+		my_printf("You choose port: ");
+		*port = argv[2];
 	}
 
 
 }
-
-void usage(FILE *stream, const char *command, int exit_status)
+void check_parameters_server(int argc, char *argv[], const char **port)
 {
-	fprintf(stream, "usage: %s <options>\n", command);
-	fprintf(stream, "options:\n");
-	fprintf(stream, "\t-p, \t--port <port>");
-	fprintf(stream, "\t-h, \t--help\n");
-	exit(exit_status);
+	int j;
+	struct option long_options[] =
+	{
+			{"port", 1, NULL, 'p'},
+			{"help", 0, NULL, 'h'},
+			{0, 0, 0, 0}
+	};
 
+	*port = NULL;
+
+	while ((j = getopt_long(argc, (char **const) argv, "p:h", long_options, NULL)) != -1)
+	{
+		switch(j)
+		{
+		case 'p':
+			*port = optarg;
+			break;
+		case 'h':
+			my_usage();
+			break;
+		case '?':
+			my_usage();
+			break;
+		default:
+			my_usage();
+			break;
+		}
+	}
+
+	if((optind != argc) || (port == NULL))
+	{
+		my_usage();
+	}
 }
+
 void my_usage(void)
 {
 	my_printf("usage: %s <options>\n"
-			"\t-p, \t--port <port>"
+			"\t-p, \t--port <port>\n"
 			"\t-h, \t--help\n", prg_name);
 	exit(EXIT_FAILURE);
 }
