@@ -69,51 +69,51 @@ html:
 ## Testet den Client
 testclient:
 	export SMSL_TESTCASE=1 && \
-	./simple_message_client -s localhost -p 6823 -u AUTOTESTER -m Test1 && \
+	./simple_message_client -s localhost -p 6783 -u AUTOTESTER -m Test1 && \
 	export SMSL_TESTCASE=2 && \
-	./simple_message_client -s localhost -p 6823 -u AUTOTESTER -m Test2 && \
+	./simple_message_client -s localhost -p 6783 -u AUTOTESTER -m Test2 && \
 	export SMSL_TESTCASE=3 && \
-	./simple_message_client -s localhost -p 6823 -u AUTOTESTER -m Test3 && \
+	./simple_message_client -s localhost -p 6783 -u AUTOTESTER -m Test3 && \
 	export SMSL_TESTCASE=4 && \
-	./simple_message_client -s localhost -p 6823 -u AUTOTESTER -m Test4 && \
+	./simple_message_client -s localhost -p 6783 -u AUTOTESTER -m Test4 && \
 	export SMSL_TESTCASE=5 && \
-	./simple_message_client -s localhost -p 6823 -u AUTOTESTER -m Test5 && \
+	./simple_message_client -s localhost -p 6783 -u AUTOTESTER -m Test5 && \
 	export SMSL_TESTCASE=6 && \
-	./simple_message_client -s localhost -p 6823 -u AUTOTESTER -m Test6 && \
+	./simple_message_client -s localhost -p 6783 -u AUTOTESTER -m Test6 && \
 	export SMSL_TESTCASE=7 && \
-	./simple_message_client -s localhost -p 6823 -u AUTOTESTER -m Test7
+	./simple_message_client -s localhost -p 6783 -u AUTOTESTER -m Test7
 
 testserver:
 	export SMSL_TESTCASE=1 && \
-	simple_message_client -s localhost -p 6823 -u AUTOTESTER -m Test1 && \
+	simple_message_client -s localhost -p 6783 -u AUTOTESTER -m Test1 && \
 	export SMSL_TESTCASE=2 && \
-	simple_message_client -s localhost -p 6823 -u AUTOTESTER -m Test2 && \
+	simple_message_client -s localhost -p 6783 -u AUTOTESTER -m Test2 && \
 	export SMSL_TESTCASE=3 && \
-	simple_message_client -s localhost -p 6823 -u AUTOTESTER -m Test3 && \
+	simple_message_client -s localhost -p 6783 -u AUTOTESTER -m Test3 && \
 	export SMSL_TESTCASE=4 && \
-	simple_message_client -s localhost -p 6823 -u AUTOTESTER -m Test4 && \
+	simple_message_client -s localhost -p 6783 -u AUTOTESTER -m Test4 && \
 	export SMSL_TESTCASE=5 && \
-	simple_message_client -s localhost -p 6823 -u AUTOTESTER -m Test5 && \
+	simple_message_client -s localhost -p 6783 -u AUTOTESTER -m Test5 && \
 	export SMSL_TESTCASE=6 && \
-	simple_message_client -s localhost -p 6823 -u AUTOTESTER -m Test6 && \
+	simple_message_client -s localhost -p 6783 -u AUTOTESTER -m Test6 && \
 	export SMSL_TESTCASE=7 && \
-	simple_message_client -s localhost -p 6823 -u AUTOTESTER -m Test7
+	simple_message_client -s localhost -p 6783 -u AUTOTESTER -m Test7
 	
 testserver_local:
 	export SMSL_TESTCASE=1 && \
-	./simple_message_client -s localhost -p 6823 -u AUTOTESTER -m Test1 && \
+	./simple_message_client -s localhost -p 6783 -u AUTOTESTER -m Test1 && \
 	export SMSL_TESTCASE=2 && \
-	./simple_message_client -s localhost -p 6823 -u AUTOTESTER -m Test2 && \
+	./simple_message_client -s localhost -p 6783 -u AUTOTESTER -m Test2 && \
 	export SMSL_TESTCASE=3 && \
-	./simple_message_client -s localhost -p 6823 -u AUTOTESTER -m Test3 && \
+	./simple_message_client -s localhost -p 6783 -u AUTOTESTER -m Test3 && \
 	export SMSL_TESTCASE=4 && \
-	./simple_message_client -s localhost -p 6823 -u AUTOTESTER -m Test4 && \
+	./simple_message_client -s localhost -p 6783 -u AUTOTESTER -m Test4 && \
 	export SMSL_TESTCASE=5 && \
-	./simple_message_client -s localhost -p 6823 -u AUTOTESTER -m Test5 && \
+	./simple_message_client -s localhost -p 6783 -u AUTOTESTER -m Test5 && \
 	export SMSL_TESTCASE=6 && \
-	./simple_message_client -s localhost -p 6823 -u AUTOTESTER -m Test6 && \
+	./simple_message_client -s localhost -p 6783 -u AUTOTESTER -m Test6 && \
 	export SMSL_TESTCASE=7 && \
-	./simple_message_client -s localhost -p 6823 -u AUTOTESTER -m Test7
+	./simple_message_client -s localhost -p 6783 -u AUTOTESTER -m Test7
 
 ## pdf haengt von html ab, (welches doxygen aufruft)
 pdf: html
