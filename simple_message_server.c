@@ -31,10 +31,13 @@
 #include <sys/wait.h>
 #include <signal.h>
 #include <getopt.h>
+#include <error.h>
+#include <stdarg.h>
 
 /*
  * ---------------------------------- globals ------------------------
  */
+#define LISTEN 24
 
 const char *prg_name;
 
@@ -71,8 +74,9 @@ int main(int argc, char *argv[])
 	int check;
 	struct sockaddr_storage address;
 	socklen_t address_length;
-	ssize_t read;
-	const char *port;
+	//ssize_t read;
+	const char *port = NULL;
+	int y = 0;
 
 	prg_name = argv[0];
 	check_params(argc, argv);
@@ -82,11 +86,13 @@ int main(int argc, char *argv[])
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = AI_PASSIVE;
 
+	y = 1;
+
 
 	check = getaddrinfo(NULL, port, &hints, &server);
 	if(check != 0)
 	{
-		fprintf(stderr, "%s: error getaddrinfo: %s\n", prog_name, gai_strerror(check));
+		fprintf(stderr, "%s: error getaddrinfo: %s\n", prg_name, gai_strerror(check));
 		return EXIT_FAILURE;
 	}
 
@@ -95,14 +101,14 @@ int main(int argc, char *argv[])
 		socket_desc = socket(server->ai_family, server->ai_socktype, server->ai_protocol);
 		if(socket_desc == -1)
 		{
-			fprintf(stderr, "%s: error socket: %s\n", prog_name, strerror(errno));
+			fprintf(stderr, "%s: error socket: %s\n", prg_name, strerror(errno));
 			freeaddrinfo(server);
 			return EXIT_FAILURE;
 		}
 
-		if(setsockopt(socket_desc, SOL_SOCKET, SO_REUSEADDR, 1, sizeof(int)) == -1)
+		if(setsockopt(socket_desc, SOL_SOCKET, SO_REUSEADDR, &y, sizeof(int)) == -1)
 		{
-			fprintf(stderr, "%s: error setsockopt %s\n", prog_name, strerror(errno));
+			fprintf(stderr, "%s: error setsockopt %s\n", prg_name, strerror(errno));
 			close(socket_desc);
 			freeaddrinfo(server);
 			return EXIT_FAILURE;
@@ -110,7 +116,7 @@ int main(int argc, char *argv[])
 		/* if bind is not successful, try with the next address */
 		if(bind(socket_desc, server->ai_addr, server->ai_addrlen) == -1)
 		{
-			fprintf(stderr, "%s: error bind %s\n", prog_name, strerror(errno));
+			fprintf(stderr, "%s: error bind %s\n", prg_name, strerror(errno));
 			close(socket_desc);
 			freeaddrinfo(server);
 			continue;
@@ -120,22 +126,22 @@ int main(int argc, char *argv[])
 
 	if(rp == NULL)
 	{
-		fprintf(stderr, "%s: server binding failed\n", prog_name);
+		fprintf(stderr, "%s: server binding failed\n", prg_name);
 		return EXIT_FAILURE;
 	}
 
 	freeaddrinfo(server);
 
 	/* listen on socket */
-	if(listen(socket_desc, LISTENQ) == -1)
+	if(listen(socket_desc, LISTEN) == -1)
 	{
-		fprintf(stderr, "%s: error because of too many connections %s\n", prog_name, strerror(errno));
+		fprintf(stderr, "%s: error because of too many connections %s\n", prg_name, strerror(errno));
 		close(socket_desc);
 		return EXIT_FAILURE;
 	}
 
 	/* loop until accept was successful */
-	while(true)
+	for(;;)
 	{
 		address_length = sizeof(address);
 		new_socket_desc = accept(socket_desc, (struct sockaddr *) &address, &address_length);
@@ -151,7 +157,7 @@ int main(int argc, char *argv[])
 			}
 			else
 			{
-				fprintf(stderr, "%s: error accept %s\n", prog_name, strerror(errno));
+				fprintf(stderr, "%s: error accept %s\n", prg_name, strerror(errno));
 				close(socket_desc);
 				return EXIT_FAILURE;
 			}
