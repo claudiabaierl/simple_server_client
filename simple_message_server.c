@@ -35,10 +35,16 @@
 #include <stdarg.h>
 
 /*
+ * ---------------------------------- defines ------------------------
+ */
+/* Backlog */
+#define LISTEN 24
+/* path to servers business logic */
+#define PATHSERVERLOGIC "usr/local/bin/simple_message_server_logic"
+
+/*
  * ---------------------------------- globals ------------------------
  */
-#define LISTEN 24
-
 const char *prg_name;
 
 
@@ -190,7 +196,7 @@ int main(int argc, char *argv[])
 				close(new_socket_desc);
 				return EXIT_FAILURE;
 			}
-			if(execlp(LOGICPATH, "simple_message_server_logic", NULL) == -1)
+			if(execlp(PATHSERVERLOGIC, "simple_message_server_logic", NULL) == -1)
 			{
 				fprintf(stderr, "%s: execlp() failed: %s\n", prg_name, strerror(errno));
 				return EXIT_FAILURE;
@@ -231,6 +237,7 @@ void check_params(int argc, char *argv[], const char **port)
 
 
 }
+
 void check_parameters_server(int argc, char *argv[], const char **port)
 {
 	int j;
