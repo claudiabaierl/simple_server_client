@@ -142,6 +142,8 @@ int main(int argc, char *argv[])
 		return EXIT_FAILURE;
 	}
 
+	signal(SIGCHLD, signal_child);
+
 	/* loop until accept was successful */
 	for(;;)
 	{
@@ -178,8 +180,24 @@ int main(int argc, char *argv[])
 		else if(child == 0)
 		{
 			close(socket_desc);
-
+			if(dup2(new_socket_desc, 0) == -1)
+			{
+				close(new_socket_desc);
+				return EXIT_FAILURE;
+			}
+			if(dup2(new_socket_desc, 1) == -1)
+			{
+				close(new_socket_desc);
+				return EXIT_FAILURE;
+			}
+			if(execlp(LOGICPATH, "simple_message_server_logic", NULL) == -1)
+			{
+				fprintf(stderr, "%s: execlp() failed: %s\n", prg_name, strerror(errno));
+				return EXIT_FAILURE;
+			}
+			close(new_socket_desc);
 		}
+		close(new_socket_desc);
 	}
 
 	return EXIT_SUCCESS;
