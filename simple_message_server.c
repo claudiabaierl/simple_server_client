@@ -40,7 +40,7 @@
 /* Backlog */
 #define LISTEN 24
 /* path to servers business logic */
-#define PATHSERVERLOGIC "usr/local/bin/simple_message_server_logic"
+#define PATHSERVERLOGIC "/usr/local/bin/simple_message_server_logic"
 
 /*
  * ---------------------------------- globals ------------------------
