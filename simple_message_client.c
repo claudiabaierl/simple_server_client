@@ -4,7 +4,7 @@
  * VCS TCP/IP Client
  *
  * @author: Claudia Baierl - ic14b003 <ic14b003@technikum-wien.at>
- * @author: Zübide Sayici - ic14b002 <ic14b002@technikum-wien.at>
+ * @author: Zuebide Sayici - ic14b002 <ic14b002@technikum-wien.at>
  *
  * @version $Revision: xxx $
  *
@@ -32,6 +32,8 @@
  * ---------------------------------- defines ------------------------
  */
 
+#define QUEUESIZE 10 //number of pending connections for connection queue
+
 /*
  * ---------------------------------- globals ------------------------
  */
@@ -47,7 +49,7 @@ int verbose;
 static void usage(FILE *out, const char *prg_name, int exit_status);
 void logger(char *message);
 void my_printf(char *format, ...);
-
+void *get_in_addr(struct sockaddr *sa);
 
 
 /**
@@ -64,12 +66,22 @@ void my_printf(char *format, ...);
 int main(int argc, const char * const argv[])
 {
 
-	struct addrinfo client_info;
-	struct addrinfo *set_info, *rp;
+	struct addrinfo client_info, *set_info, *rp;
 	//size_t length;
 	int check;
 	int socket_desc;
 	int connect_socket;
+	//int bind_socket;
+	char s[INET6_ADDRSTRLEN];
+	int send_message;
+	int flush_check;
+	int shutdown_check;
+	FILE *message_desc = NULL;
+		
+
+
+	//char buffer[100]; //max of 100 bytes
+
 	const char *server = NULL;
 	const char *port = NULL;
 	const char *user = NULL;
@@ -82,9 +94,12 @@ int main(int argc, const char * const argv[])
 	prg_name = argv[0];
 
 	memset(&client_info, 0, sizeof(client_info));
-	client_info.ai_family = AF_UNSPEC;
+	client_info.ai_family = AF_UNSPEC; //not specified if IPv4 or IPv6
 	client_info.ai_socktype = SOCK_STREAM;
 	client_info.ai_protocol = 0;
+
+
+
 
 	check = getaddrinfo(server, port, &client_info, &set_info);
 	if(check != 0)
@@ -96,20 +111,23 @@ int main(int argc, const char * const argv[])
 	/* go through all he results and connect if possible - if not, try the next one */
 	for (rp = set_info; rp != NULL; rp = rp->ai_next)
 	{
+
 		socket_desc = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
 		if (socket_desc == -1)
 		{
 			logger("socket");
 			continue;
 		}
-		/* if connect is successful, break and close socket descriptor */
+
+
 		connect_socket = connect(socket_desc, rp->ai_addr, rp->ai_addrlen);
 		if(connect_socket == -1)
 		{
 			logger("connect");
-			close(socket_desc);
 			continue;
 		}
+
+
 		else
 			break;
 	}
@@ -120,13 +138,53 @@ int main(int argc, const char * const argv[])
 		freeaddrinfo(set_info);
 		return EXIT_FAILURE;
 	}
+
+
+	inet_ntop(rp->ai_family, get_in_addr((struct sockaddr *)rp->ai_addr),s, sizeof s );
+	fprintf(stderr, "connect to: %s\n", s);
+
+
+	 
+	message_desc = fdopen(socket_desc, "w");
+	if(message_desc == NULL)
+	{
+		fclose(message_desc);
+		logger("file open");
+		return EXIT_FAILURE;		
+	}	
+	
+	send_message = (fprintf(message_desc,"user=test\ntestmessage JUHU JUHU\n"));
+	if (send_message ==-1)
+	{
+	
+		fclose(message_desc);
+		logger("message");
+		return EXIT_FAILURE;		
+	}
+	 
+	flush_check =fflush(message_desc);
+	if (flush_check != 0)
+	{
+		
+		fclose(message_desc);
+		logger("flush");
+		return EXIT_FAILURE;
+	}
+	
+	shutdown_check =shutdown(socket_desc, SHUT_WR);
+	if (shutdown_check== -1)
+	{
+		fclose(message_desc);
+		logger("shutdown");
+		return EXIT_FAILURE;
+	}	
+	
+	
 	/* is no longer needed */
 	freeaddrinfo(set_info);
 
-
-
-
-
+	close(socket_desc);
+	return 0;
 
 }
 /**
@@ -138,6 +196,21 @@ int main(int argc, const char * const argv[])
  * \param prg_name  - a constant character array containing the name of the executed programme  (i.e., the contents of argv[0]).
  * \param exit_status - the exit code to be used in the call to exit(exit_status) for terminating the programme.
  */
+
+
+//get sockaddr, IPv4 or IPv6
+//TODO: umschreiben!
+void *get_in_addr(struct sockaddr *sa)
+{
+	if(sa->sa_family== AF_INET)
+	{
+		return &(((struct sockaddr_in*)sa)->sin_addr);
+	}
+	return &(((struct sockaddr_in6*)sa)->sin6_addr);
+}
+
+
+
 static void usage(FILE *out, const char *prg_name, int exit_status)
 {
 	fprintf(out,"usage: %s options\n",prg_name);
@@ -185,4 +258,5 @@ void my_printf(char * format, ...)
 
 	va_end(args);
 }
+
 
