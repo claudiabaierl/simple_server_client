@@ -67,41 +67,33 @@ int main(int argc, const char * const argv[])
 {
 
 	struct addrinfo client_info, *set_info, *rp;
-	//size_t length;
+
 	int check;
 	int socket_desc;
 	int connect_socket;
-	//int bind_socket;
-	char s[INET6_ADDRSTRLEN];
 	int send_message;
 	int flush_check;
-	int shutdown_check;
 	FILE *message_desc = NULL;
 		
-
-
-	//char buffer[100]; //max of 100 bytes
 
 	const char *server = NULL;
 	const char *port = NULL;
 	const char *user = NULL;
 	const char *message = NULL;
 	const char *image = NULL;
-
-
+	
 
 	smc_parsecommandline(argc, argv, &usage, &server, &port, &user, &message, &image, &verbose);
 	prg_name = argv[0];
 
+	//client_info is set to 0
 	memset(&client_info, 0, sizeof(client_info));
-	client_info.ai_family = AF_UNSPEC; //not specified if IPv4 or IPv6
-	client_info.ai_socktype = SOCK_STREAM;
+	client_info.ai_family = AF_UNSPEC; /*not specified if IPv4 or IPv6*/
+	client_info.ai_socktype = SOCK_STREAM; /*socket type = stream*/
 	client_info.ai_protocol = 0;
 
 
-
-
-	check = getaddrinfo(server, port, &client_info, &set_info);
+	check = getaddrinfo(server, port, &client_info, &set_info); /*get addrinfo structs - contains internet address etc.*/
 	if(check != 0)
 	{
 		fprintf(stderr, "%s: getaddrinfo failed: %s\n", prg_name, gai_strerror(check));
@@ -138,13 +130,9 @@ int main(int argc, const char * const argv[])
 		freeaddrinfo(set_info);
 		return EXIT_FAILURE;
 	}
-
-
-	inet_ntop(rp->ai_family, get_in_addr((struct sockaddr *)rp->ai_addr),s, sizeof s );
-	fprintf(stderr, "connect to: %s\n", s);
-
-
-	 
+fprintf(stderr, "image:%s", image);
+	
+	/*open file and associate it to the stream socket*/
 	message_desc = fdopen(socket_desc, "w");
 	if(message_desc == NULL)
 	{
@@ -153,15 +141,35 @@ int main(int argc, const char * const argv[])
 		return EXIT_FAILURE;		
 	}	
 	
-	send_message = (fprintf(message_desc,"user=test\ntestmessage JUHU JUHU\n"));
-	if (send_message ==-1)
-	{
 	
-		fclose(message_desc);
-		logger("message");
-		return EXIT_FAILURE;		
+	/*user field is required - don't have to check again if username was entered*/
+	/*check message data and send*/
+	/*only send image tag if image was given*/
+	if(image==NULL)
+	{
+		send_message = fprintf(message_desc,"user=%s\n%s\n",user, message);
+			if (send_message ==-1)
+			{
+				fclose(message_desc);
+				logger("message");
+				return EXIT_FAILURE;		
+			}
 	}
-	 
+	/*message is required - send image and message if image is given*/
+	else
+	{
+		send_message = fprintf(message_desc,"user=%s\nimg=%s\n%s\n",user, image, message);
+			if (send_message ==-1)
+			{
+				fclose(message_desc);
+				logger("message");
+				return EXIT_FAILURE;		
+			}
+	}
+	
+	
+	
+	/*write all unwritten data to the file/socket */
 	flush_check =fflush(message_desc);
 	if (flush_check != 0)
 	{
@@ -170,19 +178,12 @@ int main(int argc, const char * const argv[])
 		logger("flush");
 		return EXIT_FAILURE;
 	}
-	
-	shutdown_check =shutdown(socket_desc, SHUT_WR);
-	if (shutdown_check== -1)
-	{
-		fclose(message_desc);
-		logger("shutdown");
-		return EXIT_FAILURE;
-	}	
-	
+
 	
 	/* is no longer needed */
 	freeaddrinfo(set_info);
 
+	/*close the socket connection*/
 	close(socket_desc);
 	return 0;
 
@@ -197,17 +198,6 @@ int main(int argc, const char * const argv[])
  * \param exit_status - the exit code to be used in the call to exit(exit_status) for terminating the programme.
  */
 
-
-//get sockaddr, IPv4 or IPv6
-//TODO: umschreiben!
-void *get_in_addr(struct sockaddr *sa)
-{
-	if(sa->sa_family== AF_INET)
-	{
-		return &(((struct sockaddr_in*)sa)->sin_addr);
-	}
-	return &(((struct sockaddr_in6*)sa)->sin6_addr);
-}
 
 
 
