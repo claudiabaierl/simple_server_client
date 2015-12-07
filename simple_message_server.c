@@ -209,34 +209,7 @@ int main(int argc, char *argv[])
 	return EXIT_SUCCESS;
 
 }
-/* meine Alternative - darf aber wohl nicht verwendet werden wg. getopt, das verwendet werden muss */
-void check_params(int argc, char *argv[], const char **port)
-{
 
-	/* if less than three arguments are passed, the usage is not correct */
-	if (argc < 2)
-	{
-		my_printf("Check argc\n");
-		my_usage();
-	}
-	else if ((strcmp(argv[0], "./simple_message_server")) != 0)
-	{
-		my_printf("Check arg 0");
-		my_usage();
-	}
-	else if(((strcmp(argv[1], "-h")) || (strcmp(argv[1], "--h")) || (strcmp(argv[1], "?"))) == 0)
-	{
-		my_printf("check for help \n");
-		my_usage();
-	}
-	else if(((strcmp(argv[1], "-p")) || (strcmp(argv[1], "--p"))) == 0)
-	{
-		my_printf("You choose port: ");
-		*port = argv[2];
-	}
-
-
-}
 
 void check_parameters_server(int argc, char *argv[], const char **port)
 {
