@@ -24,8 +24,6 @@
 #include <unistd.h>
 #include <string.h>
 #include <arpa/inet.h>
-#include <error.h>
-#include <stdarg.h>
 #include "simple_message_client_commandline_handling.h"
 
 /*
@@ -48,9 +46,9 @@ int verbose;
 
 static void usage(FILE *out, const char *prg_name, int exit_status);
 void logger(char *message);
-void my_printf(char *format, ...);
 void *get_in_addr(struct sockaddr *sa);
 int send_message(int socket_desc, const char *user, const char *message, const char *image);
+int receive_response(int socket_desc);
 
 
 /**
@@ -145,8 +143,10 @@ int main(int argc, const char * const argv[])
  *
  * \brief send_message function sends user, message and if chosen by user an image
  *
- * \param argc passes the number of arguments
- * \param argv passes the arguments (programme name is argv[0]
+ * \param socket_desc passes the socket_descriptor
+ * \param user passes the user who sends the message
+ * \param message passes the message to written to the bulletin board
+ * \param image passes the image URL to be shown in the bulletin board
  *
  * \return EXIT_SUCCESS when no error occurs
  * \return EXIT_FAILURE on error
@@ -229,6 +229,36 @@ int send_message(int socket_desc, const char *user, const char *message, const c
 	return EXIT_SUCCESS;
 
 }
+/**
+ *
+ * \brief send_message function receives the servers response
+ *
+ * \param socket_des passes the socket descriptor
+ *
+ * \return EXIT_SUCCESS when no error occurs
+ * \return EXIT_FAILURE on error
+ *
+ */
+int receive_response(int socket_desc)
+{
+	FILE *client_socket;
+	FILE *write_to = NULL;
+	char buffer[256];
+
+
+
+	client_socket = fdopen(socket_desc, "r");
+	if(client_socket == NULL)
+	{
+		fprintf(stderr, "%s: failed to open socket for reading", prg_name);
+		logger("open file descriptor");
+		return EXIT_FAILURE;
+	}
+
+
+
+
+}
 
 /**
  * \brief a function pointer to a function which is called from smc_parsecommandline() if the user enters wrong
@@ -275,16 +305,6 @@ void logger(char *message)
 		}
 	}
 }
-void my_printf(char * format, ...)
-{
-	va_list args;
 
-	va_start(args, format);
-
-	if (vprintf(format, args) < 0)
-		error(1, 1, "%d", errno);
-
-	va_end(args);
-}
 
 
