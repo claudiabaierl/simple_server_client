@@ -130,6 +130,10 @@ int main(int argc, const char * const argv[])
 		freeaddrinfo(set_info);
 		return EXIT_FAILURE;
 	}
+
+	/* is no longer needed */
+	freeaddrinfo(set_info);
+
 fprintf(stderr, "image:%s", image);
 	
 	/*open file and associate it to the stream socket*/
@@ -180,8 +184,7 @@ fprintf(stderr, "image:%s", image);
 	}
 
 	
-	/* is no longer needed */
-	freeaddrinfo(set_info);
+
 
 	/*close the socket connection*/
 	close(socket_desc);
