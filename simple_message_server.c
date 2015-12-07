@@ -52,9 +52,7 @@ const char *prg_name;
  * ---------------------------------- function prototypes ------------
  */
 
-void check_params(int argc, char *argv[], const char **port);
-void my_usage(void);
-void my_printf(char * format, ...);
+void my_usage(FILE * out, int exit_status);
 void check_parameters_server(int argc, char *argv[], const char **port);
 void signal_child(int sig);
 
@@ -82,7 +80,6 @@ int main(int argc, char *argv[])
 	int child;
 	struct sockaddr_storage address;
 	socklen_t address_length;
-	//ssize_t read;
 	/* server port number */
 	const char *port = NULL;
 	int y = 0;
@@ -91,7 +88,8 @@ int main(int argc, char *argv[])
 	check_parameters_server(argc, argv, &port);
 
 	memset(&hints, 0, sizeof(hints));
-	hints.ai_family = AF_UNSPEC;
+	/* server connects to IPv4 address */
+	hints.ai_family = AF_INET;
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = AI_PASSIVE;
 
@@ -231,20 +229,20 @@ void check_parameters_server(int argc, char *argv[], const char **port)
 			*port = optarg;
 			break;
 		case 'h':
-			my_usage();
+			my_usage(stdout, EXIT_SUCCESS);
 			break;
 		case '?':
-			my_usage();
+			my_usage(stderr, EXIT_FAILURE);
 			break;
 		default:
-			my_usage();
+			my_usage(stderr, EXIT_FAILURE);
 			break;
 		}
 	}
 
 	if((optind != argc) || (port == NULL))
 	{
-		my_usage();
+		my_usage(stderr, EXIT_FAILURE);
 	}
 }
 
@@ -256,22 +254,12 @@ void signal_child(int sig)
 	while(waitpid(-1, NULL, WNOHANG) > 0);
 }
 
-void my_usage(void)
+void my_usage(FILE * out, int exit_status)
 {
-	my_printf("usage: %s <options>\n"
+	fprintf(out, "usage: %s <options>\n"
 			"\t-p, \t--port <port>\n"
 			"\t-h, \t--help\n", prg_name);
-	exit(EXIT_FAILURE);
+	exit(exit_status);
 }
 
-void my_printf(char * format, ...)
-{
-	va_list args;
 
-	va_start(args, format);
-
-	if (vprintf(format, args) < 0)
-		error(1, 1, "%d", errno);
-
-	va_end(args);
-}
