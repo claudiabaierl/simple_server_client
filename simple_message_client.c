@@ -50,6 +50,7 @@ static void usage(FILE *out, const char *prg_name, int exit_status);
 void logger(char *message);
 void my_printf(char *format, ...);
 void *get_in_addr(struct sockaddr *sa);
+int send_message(int socket_desc, const char *user, const char *message, const char *image);
 
 
 /**
@@ -71,10 +72,7 @@ int main(int argc, const char * const argv[])
 	int check;
 	int socket_desc;
 	int connect_socket;
-	int send_message;
-	int flush_check;
-	FILE *message_desc = NULL;
-		
+
 
 	const char *server = NULL;
 	const char *port = NULL;
@@ -134,63 +132,104 @@ int main(int argc, const char * const argv[])
 	/* is no longer needed */
 	freeaddrinfo(set_info);
 
-fprintf(stderr, "image:%s", image);
-	
-	/*open file and associate it to the stream socket*/
-	message_desc = fdopen(socket_desc, "w");
-	if(message_desc == NULL)
-	{
-		fclose(message_desc);
-		logger("file open");
-		return EXIT_FAILURE;		
-	}	
-	
-	
-	/*user field is required - don't have to check again if username was entered*/
-	/*check message data and send*/
-	/*only send image tag if image was given*/
-	if(image==NULL)
-	{
-		send_message = fprintf(message_desc,"user=%s\n%s\n",user, message);
-			if (send_message ==-1)
-			{
-				fclose(message_desc);
-				logger("message");
-				return EXIT_FAILURE;		
-			}
-	}
-	/*message is required - send image and message if image is given*/
-	else
-	{
-		send_message = fprintf(message_desc,"user=%s\nimg=%s\n%s\n",user, image, message);
-			if (send_message ==-1)
-			{
-				fclose(message_desc);
-				logger("message");
-				return EXIT_FAILURE;		
-			}
-	}
-	
-	
-	
-	/*write all unwritten data to the file/socket */
-	flush_check =fflush(message_desc);
-	if (flush_check != 0)
-	{
-		
-		fclose(message_desc);
-		logger("flush");
-		return EXIT_FAILURE;
-	}
-
-	
-
+	send_message(socket_desc, user, message, image);
 
 	/*close the socket connection*/
 	close(socket_desc);
 	return 0;
 
 }
+
+
+/**
+ *
+ * \brief send_message function sends user, message and if chosen by user an image
+ *
+ * \param argc passes the number of arguments
+ * \param argv passes the arguments (programme name is argv[0]
+ *
+ * \return EXIT_SUCCESS when no error occurs
+ * \return EXIT_FAILURE on error
+ *
+ */
+int send_message(int socket_desc, const char *user, const char *message, const char *image)
+{
+
+	int send_message;
+	int flush_check;
+	FILE *message_desc = NULL;
+	char verbose[256];
+
+	/*wofür brauchen wir das??*/
+	//fprintf(stderr, "image:%s", image);
+
+		/*open file and associate it to the stream socket*/
+		message_desc = fdopen(socket_desc, "w");
+		if(message_desc == NULL)
+		{
+			fclose(message_desc);
+			logger("file open");
+			return EXIT_FAILURE;
+		}
+
+		if(sprintf(verbose, "Sent request user=\"%s\"", user) < 0)
+		{
+			fprintf(stderr, "%s: failed to write verbose string", prg_name);
+		}
+
+		/*user field is required - don't have to check again if username was entered*/
+		/*check message data and send*/
+		/*only send image tag if image was given*/
+		if(image==NULL)
+		{
+			send_message = fprintf(message_desc,"user=%s\n%s\n", user, message);
+				if (send_message ==-1)
+				{
+					fclose(message_desc);
+					logger("message");
+					return EXIT_FAILURE;
+				}
+		}
+		/*message is required - send image and message if image is given*/
+		else
+		{
+			if(sprintf(verbose, "%s, img=\"%s\"", verbose, image) < 0)
+			{
+				fprintf(stderr, "%s: failed to write verbose string", prg_name);
+			}
+
+			send_message = fprintf(message_desc,"user=%s\nimg=%s\n%s\n",user, image, message);
+				if (send_message ==-1)
+				{
+					fclose(message_desc);
+					logger("message");
+					return EXIT_FAILURE;
+				}
+		}
+
+		/*write all unwritten data to the file/socket */
+		flush_check =fflush(message_desc);
+		if (flush_check != 0)
+		{
+
+			fclose(message_desc);
+			logger("flush");
+			return EXIT_FAILURE;
+		}
+
+		if(shutdown(socket_desc, SHUT_WR) != 0)
+		{
+			fprintf(stderr, "%s: failed to close writing direction", prg_name);
+			logger("shutdown");
+			return EXIT_FAILURE;
+		}
+
+	logger(verbose);
+
+	return EXIT_SUCCESS;
+
+}
+
 /**
  * \brief a function pointer to a function which is called from smc_parsecommandline() if the user enters wrong
  *        parameters.
@@ -200,10 +239,6 @@ fprintf(stderr, "image:%s", image);
  * \param prg_name  - a constant character array containing the name of the executed programme  (i.e., the contents of argv[0]).
  * \param exit_status - the exit code to be used in the call to exit(exit_status) for terminating the programme.
  */
-
-
-
-
 static void usage(FILE *out, const char *prg_name, int exit_status)
 {
 	fprintf(out,"usage: %s options\n",prg_name);
