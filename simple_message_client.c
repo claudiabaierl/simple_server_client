@@ -24,6 +24,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <arpa/inet.h>
+#include <stdarg.h>
 #include "simple_message_client_commandline_handling.h"
 
 /*
@@ -37,18 +38,21 @@
  */
 
 const char *prg_name;
-int verbose;
+static int verbose = 0;
+static long int maximum;
 
 /*
  * ---------------------------------- function prototypes ------------
  */
 
 
-static void usage(FILE *out, const char *prg_name, int exit_status);
+static void usage(FILE *out, const char *prog_name, int exit_status);
 void logger(char *message);
 void *get_in_addr(struct sockaddr *sa);
 int send_message(int socket_desc, const char *user, const char *message, const char *image);
 int receive_response(int socket_desc);
+int get_max(void);
+void verbose_print(const char *format, ...);
 
 
 /**
@@ -158,10 +162,7 @@ int send_message(int socket_desc, const char *user, const char *message, const c
 	int send_message;
 	int flush_check;
 	FILE *message_desc = NULL;
-	char verbose[256];
 
-	/*wofür brauchen wir das??*/
-	//fprintf(stderr, "image:%s", image);
 
 		/*open file and associate it to the stream socket*/
 		message_desc = fdopen(socket_desc, "w");
@@ -172,10 +173,7 @@ int send_message(int socket_desc, const char *user, const char *message, const c
 			return EXIT_FAILURE;
 		}
 
-		if(sprintf(verbose, "Sent request user=\"%s\"", user) < 0)
-		{
-			fprintf(stderr, "%s: failed to write verbose string", prg_name);
-		}
+		verbose_print("Sent request user =\"%s\"", user);
 
 		/*user field is required - don't have to check again if username was entered*/
 		/*check message data and send*/
@@ -193,10 +191,8 @@ int send_message(int socket_desc, const char *user, const char *message, const c
 		/*message is required - send image and message if image is given*/
 		else
 		{
-			if(sprintf(verbose, "%s, img=\"%s\"", verbose, image) < 0)
-			{
-				fprintf(stderr, "%s: failed to write verbose string", prg_name);
-			}
+			verbose_print("user=\"%s\"img=\"%s", image);
+
 
 			send_message = fprintf(message_desc,"user=%s\nimg=%s\n%s\n",user, image, message);
 				if (send_message ==-1)
@@ -208,7 +204,7 @@ int send_message(int socket_desc, const char *user, const char *message, const c
 		}
 
 		/*write all unwritten data to the file/socket */
-		flush_check =fflush(message_desc);
+		flush_check = fflush(message_desc);
 		if (flush_check != 0)
 		{
 
@@ -224,7 +220,6 @@ int send_message(int socket_desc, const char *user, const char *message, const c
 			return EXIT_FAILURE;
 		}
 
-	logger(verbose);
 
 	return EXIT_SUCCESS;
 
@@ -242,10 +237,8 @@ int send_message(int socket_desc, const char *user, const char *message, const c
 int receive_response(int socket_desc)
 {
 	FILE *client_socket;
-	FILE *write_to = NULL;
-	char buffer[256];
-
-
+	//FILE *write_to = NULL;
+	//char buffer[maximum];
 
 	client_socket = fdopen(socket_desc, "r");
 	if(client_socket == NULL)
@@ -258,6 +251,10 @@ int receive_response(int socket_desc)
 
 
 
+
+
+	return EXIT_SUCCESS;
+
 }
 
 /**
@@ -269,9 +266,11 @@ int receive_response(int socket_desc)
  * \param prg_name  - a constant character array containing the name of the executed programme  (i.e., the contents of argv[0]).
  * \param exit_status - the exit code to be used in the call to exit(exit_status) for terminating the programme.
  */
-static void usage(FILE *out, const char *prg_name, int exit_status)
+static void usage(FILE *out, const char *prog_name, int exit_status)
 {
-	fprintf(out,"usage: %s options\n",prg_name);
+	int check;
+
+	check = fprintf(out,"usage: %s options\n",prog_name);
 	    fprintf(out,"options:\n");
 	    fprintf(out,"\t-s, --server <server>   full qualified domain name or IP address of the server\n");
 	    fprintf(out,"\t-p, --port <port>       well-known port of the server [0..65535]\n");
@@ -281,11 +280,20 @@ static void usage(FILE *out, const char *prg_name, int exit_status)
 	    fprintf(out,"\t-v, --verbose           verbose output (for debugging purpose)\n");
 	    fprintf(out,"\t-h, --help\n");
 
+
+	    if (check < 0)
+	    {
+	    	fprintf(stderr, "fprintf failed: %s", strerror(errno));
+	    }
+
+	    fflush(out);
+	    fflush(stderr);
+
 	exit(exit_status);
 }
 /**
  *
- * \brief Function error handling of printf
+ * \brief logger Function error handling of printf
  *
  * \param format
  *
@@ -305,6 +313,54 @@ void logger(char *message)
 		}
 	}
 }
+/**
+ *
+ * \brief get_max Function getting max size
+ *
+ * \return EXIT_SUCCESS if no error occurs
+ * \return EXIT_FAILURE if an error occurs
+ *
+ */
+int get_max(void)
+{
 
+	maximum = pathconf(".", _PC_NAME_MAX);
+	if(maximum == -1)
+	{
+		fprintf(stderr, "%s: getting max path failed", prg_name);
+		return EXIT_FAILURE;
+	}
+
+	return EXIT_SUCCESS;
+
+}
+/**
+ *
+ * \brief get_max Function getting max size
+ *
+ * \return EXIT_SUCCESS if no error occurs
+ * \return EXIT_FAILURE if an error occurs
+ *
+ */
+void verbose_print(const char *format, ...)
+{
+	va_list argp;
+	int n;
+
+	if(verbose != 0)
+	{
+		fprintf(stdout, "Verbose: ");
+		va_start(argp, format);
+		n = vfprintf(stdout, format, argp);
+
+		if(n < 0)
+		{
+			fprintf(stderr, strerror(errno));
+			exit(EXIT_FAILURE);
+		}
+
+		va_end(argp);
+	}
+}
 
 
