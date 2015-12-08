@@ -40,6 +40,9 @@
 #define LISTEN 24
 /* path to servers business logic */
 #define PATHSERVERLOGIC "/usr/local/bin/simple_message_server_logic"
+#define PORT_MIN 0
+#define PORT_MAX 65535
+#define STRTOL_BASE 10
 
 /*
  * ---------------------------------- globals ------------------------
@@ -206,11 +209,24 @@ int main(int argc, char *argv[])
 	return EXIT_SUCCESS;
 
 }
-
+/**
+ *
+ * \brief check_parameters_server function checks parameters and reacts accordingly
+ *
+ *
+ * \param argc passes the number of arguments
+ * \param argv passes the arguments (programme name is argv[0]
+ * \param port gets the port for the server
+ *
+ *
+ */
 
 void check_parameters_server(int argc, char *argv[], const char **port)
 {
 	int j;
+	long int port_number;
+	char *end_ptr;
+
 	struct option long_options[] =
 	{
 			{"port", 1, NULL, 'p'},
@@ -225,6 +241,19 @@ void check_parameters_server(int argc, char *argv[], const char **port)
 		switch(j)
 		{
 		case 'p':
+			port_number = strtol(optarg, &end_ptr, STRTOL_BASE);
+
+			if(errno == ERANGE)
+			{
+				fprintf(stderr, strerror(errno));
+			}
+
+			if(port_number < PORT_MIN || port_number > PORT_MAX)
+			{
+				fprintf(stderr, "%s: port out of range", prg_name);
+				my_usage(stderr, EXIT_FAILURE);
+			}
+
 			*port = optarg;
 			break;
 		case 'h':
@@ -245,6 +274,16 @@ void check_parameters_server(int argc, char *argv[], const char **port)
 	}
 }
 
+/**
+ *
+ * \brief Main function implements a server which connects to a client
+ * Main entry point
+ *
+ * \param sig
+ *
+ *
+ *
+ */
 void signal_child(int sig)
 {
 	/* to prevent warnings, no other use */
@@ -252,12 +291,31 @@ void signal_child(int sig)
 	/* wait for any child process and return immediately if no child has exited */
 	while(waitpid(-1, NULL, WNOHANG) > 0);
 }
-
+/**
+ *
+ * \brief my_usage function prints usage function
+ *
+ *
+ * \param sig
+ *
+ *
+ */
 void my_usage(FILE * out, int exit_status)
 {
-	fprintf(out, "usage: %s <options>\n"
+	/*variable for error handling */
+	int check;
+
+	check = fprintf(out, "usage: %s <options>\n"
 			"\t-p, \t--port <port>\n"
 			"\t-h, \t--help\n", prg_name);
+	/* if fprintf to stdout fails and flush after that */
+	if(check < 0)
+	{
+		fprintf(stderr, strerror(errno));
+	}
+	fflush(out);
+	fflush(stderr);
+
 	exit(exit_status);
 }
 
