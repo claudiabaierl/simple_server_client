@@ -32,6 +32,7 @@
  */
 
 #define QUEUESIZE 10 //number of pending connections for connection queue
+#define MAXIMUM_SIZE 2048
 
 /*
  * ---------------------------------- globals ------------------------
@@ -53,6 +54,7 @@ int send_message(int socket_desc, const char *user, const char *message, const c
 int receive_response(int socket_desc);
 int get_max(void);
 void verbose_print(const char *format, ...);
+int check_stream(char *stream, const char *lookup, char *value);
 
 
 /**
@@ -237,8 +239,16 @@ int send_message(int socket_desc, const char *user, const char *message, const c
 int receive_response(int socket_desc)
 {
 	FILE *client_socket;
-	//FILE *write_to = NULL;
-	//char buffer[maximum];
+	FILE *write_to = NULL;
+	char buffer[MAXIMUM_SIZE];
+	int mode = 0;
+	long int status;
+	char receive_buffer[MAXIMUM_SIZE];
+	char value[MAXIMUM_SIZE];
+	char *end_ptr;
+	int file_length, maximum_buffer;
+	int rcv = 0;
+	int count = 0;
 
 	client_socket = fdopen(socket_desc, "r");
 	if(client_socket == NULL)
@@ -248,6 +258,78 @@ int receive_response(int socket_desc)
 		return EXIT_FAILURE;
 	}
 
+	while(fgets(receive_buffer, 2048, socket_desc) != NULL)
+	{
+		switch(mode)
+		{
+		case 0:
+			if(check_stream(buffer, "status=", value) == 0)
+			{
+				status = strtol(value, &end_ptr, 10);
+				if(value == end_ptr)
+				{
+					fprintf(stderr, "Failed converting status to integer");
+					verbose_print("Failed to convert status");
+					close(socket_desc);
+					return EXIT_FAILURE;
+				}
+
+			}
+			mode = 1;
+			break;
+		case 1:
+			if(check_stream(buffer, "file=", value) == 0)
+			{
+				write_to = fopen(value, "w");
+				if(write_to == NULL)
+				{
+					fprintf(stderr, "Unable to open file");
+					verbose_print("Unable to open file: %s", value);
+					close(socket_desc);
+					return EXIT_FAILURE;
+				}
+				mode = 2;
+			}
+		case 2:
+			if(check_stream(buffer, "len=", value) == 0)
+			{
+				file_length = strtol(value, &end_ptr, 10);
+				if(value == end_ptr)
+				{
+					fprintf(stderr, "Error converting file length to integer");
+					verbose_print("File length could not be converted to integer");
+					close(socket_desc);
+					close(write_to);
+					return EXIT_FAILURE;
+				}
+				mode = 3;
+			}
+		case 3:
+			if(write_to == NULL)
+			{
+				fprintf(stderr, "Something went wrong - now file was opened");
+				verbose_print("No file was opened");
+				close(socket_desc);
+				return EXIT_FAILURE;
+			}
+		default:
+			assert(0);
+		}
+	}
+
+	while(1)
+	{
+		count++;
+		if(MAXIMUM_SIZE < (file_length-received))
+		{
+			maximum_buffer = MAXIMUM_SIZE;
+		}
+		else
+		{
+			maximum_buffer = file_length-received;
+		}
+		verbose_print("Read: %d @%d byte", count, maximum_buffer);
+	}
 
 
 
@@ -255,6 +337,51 @@ int receive_response(int socket_desc)
 
 	return EXIT_SUCCESS;
 
+}
+/**
+ * \brief check_stream Function checks for values and returns that if found
+ *
+ * \param stream  data from tcp stream
+ * \param lookup   value that is looked for
+ * \param value  found value that is returned (return value!)
+ *
+ * \return      0 when successful and -1 if not successful
+ */
+int check_stream(char *stream, const char *lookup, char *value)
+{
+	char *position, *new_position;
+
+	if(stream != NULL)
+	{
+		position = strstr(lookup, value);
+
+		if(position == NULL)
+		{
+			verbose_print("Value not found in stream: %s", stream);
+		}
+		else
+		{
+			position += strlen(lookup);
+			new_position = strchr(position, "\n");
+		}
+
+		if(new_position == NULL)
+		{
+			verbose_print("New line character not found, %s", key);
+		}
+
+		/* copy found value in given variable to pass */
+		memset(value, 0, strlen(value));
+		strncpy(value, position, new_position - position);
+
+		/* position the pointer after the value, so we can search the next item */
+		stream = stream + strlen(lookup) + strlen(value) + 1;
+
+		verbose_print("check_stream(): check for %, Value %s", lookup, value);
+		return 0;
+	}
+
+	return -1;
 }
 
 /**
@@ -336,7 +463,7 @@ int get_max(void)
 }
 /**
  *
- * \brief get_max Function getting max size
+ * \brief verbose_print Function prints to stdout if -v is activated
  *
  * \return EXIT_SUCCESS if no error occurs
  * \return EXIT_FAILURE if an error occurs
