@@ -31,8 +31,7 @@
 #include <sys/wait.h>
 #include <signal.h>
 #include <getopt.h>
-#include <error.h>
-#include <stdarg.h>
+
 
 /*
  * ---------------------------------- defines ------------------------
