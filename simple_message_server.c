@@ -243,17 +243,19 @@ void check_parameters_server(int argc, char *argv[], const char **port)
 		case 'p':
 			port_number = strtol(optarg, &end_ptr, STRTOL_BASE);
 
+			/* if strtol failed */
 			if(errno == ERANGE)
 			{
 				fprintf(stderr, strerror(errno));
 			}
 
+			/* check if port is within range */
 			if(port_number < PORT_MIN || port_number > PORT_MAX)
 			{
 				fprintf(stderr, "%s: port out of range", prg_name);
 				my_usage(stderr, EXIT_FAILURE);
 			}
-
+			/* save port */
 			*port = optarg;
 			break;
 		case 'h':
