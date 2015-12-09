@@ -129,7 +129,7 @@ int main(int argc, const char * const argv[])
 
 	if(rp == NULL)
 	{
-		fprintf(stderr, "%s: could not connect to any address.\n", prg_name);
+		fprintf(stderr, "%s: Cannot connect() to socket - %s\n", prg_name, strerror(errno));
 		freeaddrinfo(set_info);
 		return EXIT_FAILURE;
 	}
@@ -176,13 +176,14 @@ int send_message(int socket_desc, const char *user, const char *message, const c
 			return EXIT_FAILURE;
 		}
 
-		verbose_print("Sent request user =\"%s\"", user);
+		verbose_print(", %s(), line %d] Sent request user =\"%s\"\n",  __func__, __LINE__, user);
 
 		/*user field is required - don't have to check again if username was entered*/
 		/*check message data and send*/
 		/*only send image tag if image was given*/
 		if(image==NULL)
 		{
+			verbose_print(", %s(), line %d] message =\"%s\n",  __func__, __LINE__, message);
 			send_message = fprintf(message_desc,"user=%s\n%s\n", user, message);
 				if (send_message ==-1)
 				{
@@ -194,8 +195,8 @@ int send_message(int socket_desc, const char *user, const char *message, const c
 		/*message is required - send image and message if image is given*/
 		else
 		{
-			verbose_print("user=\"%s\"img=\"%s", image);
-
+			verbose_print(", %s(), line %d] img=\"%s\n",  __func__,__LINE__, image);
+			verbose_print(", %s(), line %d] message =\"%s\n", __func__, __LINE__,message);
 
 			send_message = fprintf(message_desc,"user=%s\nimg=%s\n%s\n",user, image, message);
 				if (send_message ==-1)
@@ -218,7 +219,7 @@ int send_message(int socket_desc, const char *user, const char *message, const c
 
 		if(shutdown(socket_desc, SHUT_WR) != 0)
 		{
-			fprintf(stderr, "%s: failed to close writing direction", prg_name);
+			fprintf(stderr, "%s: failed to close writing direction - %s\n", prg_name, strerror(errno));
 			logger("shutdown");
 			return EXIT_FAILURE;
 		}
@@ -254,7 +255,7 @@ int receive_response(int socket_desc)
 	client_socket = fdopen(socket_desc, "r");
 	if(client_socket == NULL)
 	{
-		fprintf(stderr, "%s: failed to open socket for reading", prg_name);
+		fprintf(stderr, "%s: failed to open socket for reading - %s\n", prg_name,  strerror(errno));
 		logger("open file descriptor");
 		return EXIT_FAILURE;
 	}
@@ -269,8 +270,8 @@ int receive_response(int socket_desc)
 				status = strtol(value, &end_ptr, 10);
 				if(value == end_ptr)
 				{
-					fprintf(stderr, "Failed converting status to integer");
-					verbose_print("Failed to convert status");
+					fprintf(stderr, "Failed converting status to integer - %s\n",  strerror(errno));
+					verbose_print(", %s(), line %d] Failed to convert status\n",  __func__,__LINE__);
 					close(socket_desc);
 					return EXIT_FAILURE;
 				}
@@ -284,8 +285,8 @@ int receive_response(int socket_desc)
 				write_to = fopen(value, "w");
 				if(write_to == NULL)
 				{
-					fprintf(stderr, "Unable to open file");
-					verbose_print("Unable to open file: %s", value);
+					fprintf(stderr, "Unable to open file - %s\n",  strerror(errno));
+					verbose_print(", %s(), line %d] Unable to open file: %s\n",  __func__, __LINE__, value);
 					close(socket_desc);
 					return EXIT_FAILURE;
 				}
@@ -297,8 +298,8 @@ int receive_response(int socket_desc)
 				file_length_received = strtol(value, &end_ptr, 10);
 				if(value == end_ptr)
 				{
-					fprintf(stderr, "Error converting file length to integer");
-					verbose_print("File length could not be converted to integer");
+					fprintf(stderr, "Error converting file length to integer - %s\n",  strerror(errno));
+					verbose_print(", %s(), line %d] File length could not be converted to integer\n",  __func__, __LINE__);
 					close(socket_desc);
 					fclose(write_to);
 					return EXIT_FAILURE;
@@ -308,8 +309,8 @@ int receive_response(int socket_desc)
 		case 3:
 			if(write_to == NULL)
 			{
-				fprintf(stderr, "Something went wrong - now file was opened");
-				verbose_print("No file was opened");
+				fprintf(stderr, "Something went wrong - now file was opened - %s\n",  strerror(errno));
+				verbose_print(", %s(), line %d] No file was opened\n",  __func__, __LINE__);
 				close(socket_desc);
 				return EXIT_FAILURE;
 			}
@@ -328,7 +329,7 @@ int receive_response(int socket_desc)
 		{
 			maximum_buffer = file_length_received;
 		}
-		verbose_print("Read: %d @%d byte", count, maximum_buffer);
+		verbose_print(", %s(), line %d] Read: %d @%d byte\n",  __func__, __LINE__, count, maximum_buffer);
 	}
 
 
@@ -358,7 +359,7 @@ int check_stream(char *stream, const char *lookup, char *value)
 		
 		if(position == NULL)
 		{
-			verbose_print("Value not found in stream: %s", stream);
+			verbose_print(", %s(), line %d] Value not found in stream: %s\n",  __func__, __LINE__, stream);
 		}
 		else
 		{
@@ -368,7 +369,7 @@ int check_stream(char *stream, const char *lookup, char *value)
 
 		if(new_position == NULL)
 		{
-			verbose_print("New line character not found, %s", position);
+			verbose_print(", %s(), line %d] New line character not found, %s\n",  __func__, __LINE__, position);
 		}
 
 		/* copy found value in given variable to pass */
@@ -378,7 +379,7 @@ int check_stream(char *stream, const char *lookup, char *value)
 		/* position the pointer after the value, so we can search the next item */
 		stream = stream + strlen(lookup) + strlen(value) + 1;
 
-		verbose_print("check_stream(): check for %, Value %s", lookup, value);
+		verbose_print(", %s(), line %d] check_stream(): check for %, Value %s\n",  __func__, __LINE__,  lookup, value);
 		return 0;
 	}
 
@@ -411,7 +412,7 @@ static void usage(FILE *out, const char *prog_name, int exit_status)
 
 	    if (check < 0)
 	    {
-	    	fprintf(stderr, "fprintf failed: %s", strerror(errno));
+	    	fprintf(stderr, "fprintf failed: %s\n", strerror(errno));
 	    }
 
 	    fflush(out);
@@ -437,7 +438,7 @@ void logger(char *message)
 		/* if printig to stdout fails, a negative value is returned */
 		if(j < 0)
 		{
-			fprintf(stderr, "Can not print to stdout.\n");
+			fprintf(stderr, "Can not print to stdout - %s\n",  strerror(errno));
 		}
 	}
 }
@@ -455,7 +456,7 @@ int get_max(void)
 	maximum = pathconf(".", _PC_NAME_MAX);
 	if(maximum == -1)
 	{
-		fprintf(stderr, "%s: getting max path failed", prg_name);
+		fprintf(stderr, "%s: getting max path failed - %s\n", prg_name,  strerror(errno));
 		return EXIT_FAILURE;
 	}
 
@@ -477,7 +478,7 @@ void verbose_print(const char *format, ...)
 
 	if(verbose != 0)
 	{
-		fprintf(stdout, "Verbose: ");
+		fprintf(stdout, "%s [%s",prg_name, __FILE__);
 		va_start(argp, format);
 		n = vfprintf(stdout, format, argp);
 
