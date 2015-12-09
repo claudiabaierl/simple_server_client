@@ -25,6 +25,7 @@
 #include <string.h>
 #include <arpa/inet.h>
 #include <stdarg.h>
+ #include <assert.h>
 #include "simple_message_client_commandline_handling.h"
 
 /*
@@ -55,7 +56,7 @@ int receive_response(int socket_desc);
 int get_max(void);
 void verbose_print(const char *format, ...);
 int check_stream(char *stream, const char *lookup, char *value);
-
+long int status;
 
 /**
  *
@@ -242,12 +243,12 @@ int receive_response(int socket_desc)
 	FILE *write_to = NULL;
 	char buffer[MAXIMUM_SIZE];
 	int mode = 0;
-	long int status;
+	
 	char receive_buffer[MAXIMUM_SIZE];
 	char value[MAXIMUM_SIZE];
 	char *end_ptr;
-	int file_length, maximum_buffer;
-	int rcv = 0;
+	int file_length_received =0;
+	int maximum_buffer =0;
 	int count = 0;
 
 	client_socket = fdopen(socket_desc, "r");
@@ -258,7 +259,7 @@ int receive_response(int socket_desc)
 		return EXIT_FAILURE;
 	}
 
-	while(fgets(receive_buffer, 2048, socket_desc) != NULL)
+	while(fgets(receive_buffer, 2048, client_socket) != NULL)
 	{
 		switch(mode)
 		{
@@ -293,13 +294,13 @@ int receive_response(int socket_desc)
 		case 2:
 			if(check_stream(buffer, "len=", value) == 0)
 			{
-				file_length = strtol(value, &end_ptr, 10);
+				file_length_received = strtol(value, &end_ptr, 10);
 				if(value == end_ptr)
 				{
 					fprintf(stderr, "Error converting file length to integer");
 					verbose_print("File length could not be converted to integer");
 					close(socket_desc);
-					close(write_to);
+					fclose(write_to);
 					return EXIT_FAILURE;
 				}
 				mode = 3;
@@ -312,21 +313,20 @@ int receive_response(int socket_desc)
 				close(socket_desc);
 				return EXIT_FAILURE;
 			}
-		default:
-			assert(0);
+		default: assert(0);
 		}
 	}
 
 	while(1)
 	{
 		count++;
-		if(MAXIMUM_SIZE < (file_length-received))
+		if(MAXIMUM_SIZE < (file_length_received))
 		{
 			maximum_buffer = MAXIMUM_SIZE;
 		}
 		else
 		{
-			maximum_buffer = file_length-received;
+			maximum_buffer = file_length_received;
 		}
 		verbose_print("Read: %d @%d byte", count, maximum_buffer);
 	}
@@ -354,7 +354,8 @@ int check_stream(char *stream, const char *lookup, char *value)
 	if(stream != NULL)
 	{
 		position = strstr(lookup, value);
-
+		new_position = NULL; 
+		
 		if(position == NULL)
 		{
 			verbose_print("Value not found in stream: %s", stream);
@@ -362,17 +363,17 @@ int check_stream(char *stream, const char *lookup, char *value)
 		else
 		{
 			position += strlen(lookup);
-			new_position = strchr(position, "\n");
+			new_position = strchr(position, '\n');
 		}
 
 		if(new_position == NULL)
 		{
-			verbose_print("New line character not found, %s", key);
+			verbose_print("New line character not found, %s", position);
 		}
 
 		/* copy found value in given variable to pass */
 		memset(value, 0, strlen(value));
-		strncpy(value, position, new_position - position);
+		strncpy(value, position, (new_position - position));
 
 		/* position the pointer after the value, so we can search the next item */
 		stream = stream + strlen(lookup) + strlen(value) + 1;
