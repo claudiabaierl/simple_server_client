@@ -42,6 +42,7 @@
 const char *prg_name;
 static int verbose = 0;
 static long int maximum;
+long int status;
 
 /*
  * ---------------------------------- function prototypes ------------
@@ -50,13 +51,13 @@ static long int maximum;
 
 static void usage(FILE *out, const char *prog_name, int exit_status);
 void logger(char *message);
-void *get_in_addr(struct sockaddr *sa);
 int send_message(int socket_desc, const char *user, const char *message, const char *image);
 int receive_response(int socket_desc);
 int get_max(void);
 void verbose_print(const char *format, ...);
 int check_stream(char *stream, const char *lookup, char *value);
-long int status;
+void my_close(FILE *fp);
+
 
 /**
  *
@@ -248,9 +249,11 @@ int receive_response(int socket_desc)
 	char receive_buffer[MAXIMUM_SIZE];
 	char value[MAXIMUM_SIZE];
 	char *end_ptr;
-	int file_length_received =0;
+	int file_length_received = 0;
 	int maximum_buffer =0;
 	int count = 0;
+	int bytes_received = 0;
+	int bytes_read = 0;
 
 	client_socket = fdopen(socket_desc, "r");
 	if(client_socket == NULL)
@@ -272,7 +275,7 @@ int receive_response(int socket_desc)
 				{
 					fprintf(stderr, "Failed converting status to integer - %s\n",  strerror(errno));
 					verbose_print(", %s(), line %d] Failed to convert status\n",  __func__,__LINE__);
-					close(socket_desc);
+					my_close(client_socket);
 					return EXIT_FAILURE;
 				}
 
@@ -287,7 +290,7 @@ int receive_response(int socket_desc)
 				{
 					fprintf(stderr, "Unable to open file - %s\n",  strerror(errno));
 					verbose_print(", %s(), line %d] Unable to open file: %s\n",  __func__, __LINE__, value);
-					close(socket_desc);
+					my_close(client_socket);
 					return EXIT_FAILURE;
 				}
 				mode = 2;
@@ -300,8 +303,8 @@ int receive_response(int socket_desc)
 				{
 					fprintf(stderr, "Error converting file length to integer - %s\n",  strerror(errno));
 					verbose_print(", %s(), line %d] File length could not be converted to integer\n",  __func__, __LINE__);
-					close(socket_desc);
-					fclose(write_to);
+					my_close(client_socket);
+					my_close(write_to);
 					return EXIT_FAILURE;
 				}
 				mode = 3;
@@ -311,7 +314,7 @@ int receive_response(int socket_desc)
 			{
 				fprintf(stderr, "Something went wrong - now file was opened - %s\n",  strerror(errno));
 				verbose_print(", %s(), line %d] No file was opened\n",  __func__, __LINE__);
-				close(socket_desc);
+				my_close(client_socket);
 				return EXIT_FAILURE;
 			}
 		default: assert(0);
@@ -330,11 +333,44 @@ int receive_response(int socket_desc)
 			maximum_buffer = file_length_received;
 		}
 		verbose_print(", %s(), line %d] Read: %d @%d byte\n",  __func__, __LINE__, count, maximum_buffer);
+
+		/* read data from the socket */
+		bytes_read = fread(buffer, sizeof(char), maximum_buffer, client_socket);
+		bytes_received = bytes_received + maximum_buffer;
+
+		/* if not as many bytes were read as written, an error occured */
+		if ((int) fwrite(buffer, sizeof(char), bytes_read, write_to) != bytes_read)
+		{
+			my_close(write_to);
+			my_close(client_socket);
+			fprintf(stderr, "Error while writing to file");
+			return EXIT_FAILURE;
+		}
+
+		/* if the received bytes are the same as the file length, check if there is another record
+		 * and close everything here
+		 */
+		if(bytes_received == file_length_received)
+		{
+			my_close(write_to);
+			my_close(client_socket);
+			logger("Done with file reading - look for the next record");
+			/* Next record */
+			mode = 1;
+			break;
+		}
+
+		/* if there was a reading error, break */
+		if(ferror(client_socket) != 0)
+		{
+			my_close(write_to);
+			my_close(client_socket);
+			fprintf(stderr, "Error reading from stream");
+			return EXIT_FAILURE;
+		}
 	}
-
-
-
-
+	logger("Received EOF");
+	my_close(client_socket);
 
 	return EXIT_SUCCESS;
 
@@ -391,7 +427,7 @@ int check_stream(char *stream, const char *lookup, char *value)
  *        parameters.
  *        The type of  this  function pointer is: typedef void (* smc_usagefunc_t) (FILE *, const char *, int);
  *
- * \param out      - specifies if ouput is STDOUT or STDIN
+ * \param out      - specifies if ouput is STDOUT or STDERR
  * \param prg_name  - a constant character array containing the name of the executed programme  (i.e., the contents of argv[0]).
  * \param exit_status - the exit code to be used in the call to exit(exit_status) for terminating the programme.
  */
@@ -489,6 +525,20 @@ void verbose_print(const char *format, ...)
 		}
 
 		va_end(argp);
+	}
+}
+
+void my_close(FILE *fp)
+{
+	int check;
+
+	check = fclose(fp);
+
+	if(check != 0)
+	{
+		fprintf(stderr, strerror(errno));
+		verbose_print(", %s(), line %d] Error closing file: %s\n",  __func__, __LINE__, fp);
+		exit(EXIT_FAILURE);
 	}
 }
 
