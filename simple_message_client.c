@@ -32,7 +32,7 @@
  * ---------------------------------- defines ------------------------
  */
 
-#define QUEUESIZE 10 //number of pending connections for connection queue
+#define QUEUESIZE 10 /*number of pending connections for connection queue */
 #define MAXIMUM_SIZE 2048
 
 /*
@@ -64,12 +64,12 @@ void my_close(FILE *fp);
  * \brief Main function is the entry point for any C programme
  *
  * \param argc passes the number of arguments
- * \param argv passes the arguments (programme name is argv[0]
+ * \param argv passes the arguments (programme name is argv[0])
  *
- * \return
+ * \return EXIT_FAILURE if an error occurs
+ * \return 0 if no error occurs
  *
  */
-
 int main(int argc, const char * const argv[])
 {
 
@@ -231,9 +231,9 @@ int send_message(int socket_desc, const char *user, const char *message, const c
 }
 /**
  *
- * \brief send_message function receives the servers response
+ * \brief receive_response function receives the servers response
  *
- * \param socket_des passes the socket descriptor
+ * \param socket_desc passes the socket descriptor
  *
  * \return EXIT_SUCCESS when no error occurs
  * \return EXIT_FAILURE on error
@@ -423,7 +423,7 @@ int check_stream(char *stream, const char *lookup, char *value)
 }
 
 /**
- * \brief a function pointer to a function which is called from smc_parsecommandline() if the user enters wrong
+ * \brief usage function pointer to a function which is called from smc_parsecommandline() if the user enters wrong
  *        parameters.
  *        The type of  this  function pointer is: typedef void (* smc_usagefunc_t) (FILE *, const char *, int);
  *
@@ -458,9 +458,9 @@ static void usage(FILE *out, const char *prog_name, int exit_status)
 }
 /**
  *
- * \brief logger Function error handling of printf
+ * \brief logger Function for logging purposes only
  *
- * \param format
+ * \param message - message passed to function is written
  *
  *
  */
@@ -527,7 +527,14 @@ void verbose_print(const char *format, ...)
 		va_end(argp);
 	}
 }
-
+/**
+ *
+ * \brief my_close Function flushes the stream pointed to by the file pointer
+ *
+ * \param fp points to the stream to be flushed
+ *
+ *
+ */
 void my_close(FILE *fp)
 {
 	int check;
