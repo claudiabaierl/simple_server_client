@@ -216,7 +216,7 @@ int main(int argc, char *argv[])
  *
  * \param argc passes the number of arguments
  * \param argv passes the arguments (programme name is argv[0]
- * \param port gets the port for the server
+ * \param port passes the port for the server
  *
  *
  */
@@ -278,11 +278,10 @@ void check_parameters_server(int argc, char *argv[], const char **port)
 
 /**
  *
- * \brief Main function implements a server which connects to a client
+ * \brief signal_child function
  * Main entry point
  *
- * \param sig
- *
+ * \param sig is only used to prevent warnings
  *
  *
  */
@@ -298,7 +297,8 @@ void signal_child(int sig)
  * \brief my_usage function prints usage function
  *
  *
- * \param sig
+ * \param out passes whether output is to stdout or stderr
+ * \param exit_status passes the status in which the programmes exits
  *
  *
  */
