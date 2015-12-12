@@ -6,9 +6,9 @@
  * @author: Claudia Baierl - ic14b003 <ic14b003@technikum-wien.at>
  * @author: Zuebide Sayici - ic14b002 <ic14b002@technikum-wien.at>
  *
- * @version $Revision: xxx $
+ * @version $Revision: 512 $
  *
- * Last Modified: $Author: xxxxx $
+ * Last Modified: $Author: Zuebide Sayici $
  */
 
 /*
@@ -25,7 +25,7 @@
 #include <string.h>
 #include <arpa/inet.h>
 #include <stdarg.h>
- #include <assert.h>
+#include <assert.h>
 #include "simple_message_client_commandline_handling.h"
 
 /*
@@ -42,7 +42,7 @@
 const char *prg_name;
 static int verbose = 0;
 static long int maximum;
-long int status;
+int status;
 
 /*
  * ---------------------------------- function prototypes ------------
@@ -50,7 +50,6 @@ long int status;
 
 
 static void usage(FILE *out, const char *prog_name, int exit_status);
-void logger(char *message);
 int send_message(int socket_desc, const char *user, const char *message, const char *image);
 int receive_response(int socket_desc);
 int get_max(void);
@@ -78,7 +77,6 @@ int main(int argc, const char * const argv[])
 	int check;
 	int socket_desc;
 	int connect_socket;
-
 
 	const char *server = NULL;
 	const char *port = NULL;
@@ -139,6 +137,7 @@ int main(int argc, const char * const argv[])
 	freeaddrinfo(set_info);
 
 	send_message(socket_desc, user, message, image);
+	receive_response(socket_desc);
 
 	/*close the socket connection*/
 	close(socket_desc);
@@ -243,14 +242,14 @@ int receive_response(int socket_desc)
 {
 	FILE *client_socket;
 	FILE *write_to = NULL;
-	char buffer[MAXIMUM_SIZE];
-	int mode = 0;
+
+	int mode;
 	
 	char receive_buffer[MAXIMUM_SIZE];
 	char value[MAXIMUM_SIZE];
 	char *end_ptr;
 	int file_length_received = 0;
-	int maximum_buffer =0;
+	int maximum_buffer = 0;
 	int count = 0;
 	int bytes_received = 0;
 	int bytes_read = 0;
@@ -262,29 +261,41 @@ int receive_response(int socket_desc)
 		logger("open file descriptor");
 		return EXIT_FAILURE;
 	}
-
-	while(fgets(receive_buffer, 2048, client_socket) != NULL)
+	verbose_print(", %s(), line %d] Client_Socket is open.\n",  __func__, __LINE__);
+	mode = 0;
+	while(fgets(receive_buffer, MAXIMUM_SIZE, client_socket) != NULL)
 	{
 		switch(mode)
 		{
 		case 0:
-			if(check_stream(buffer, "status=", value) == 0)
+			verbose_print(", %s(), line %d] In Case 0, but not in if. \n",  __func__, __LINE__);
+			if(check_stream(receive_buffer, "status=", value) == 0)
 			{
-				status = strtol(value, &end_ptr, 10);
-				if(value == end_ptr)
+				verbose_print(", %s(), line %d] Mode 0\n",  __func__, __LINE__);
+				if(sscanf(receive_buffer,"status=%d",&status) == 0)
 				{
-					fprintf(stderr, "Failed converting status to integer - %s\n",  strerror(errno));
-					verbose_print(", %s(), line %d] Failed to convert status\n",  __func__,__LINE__);
+					fprintf(stderr, "Failed to retrieve status. %s", strerror(errno));
 					my_close(client_socket);
 					return EXIT_FAILURE;
 				}
 
+				if(status == 0)
+				{
+					mode = 1;
+				}
+				else
+				{
+					verbose_print(", %s(), line %d] Status: %d is invalid\n",  __func__, __LINE__, status);
+					fprintf(stderr, "Wrong status");
+				}
+
 			}
-			mode = 1;
 			break;
 		case 1:
-			if(check_stream(buffer, "file=", value) == 0)
+			verbose_print(", %s(), line %d] Case 1\n",  __func__, __LINE__);
+			if(check_stream(receive_buffer, "file=", value) == 0)
 			{
+				verbose_print(", %s(), line %d] Mode 1\n",  __func__, __LINE__);
 				write_to = fopen(value, "w");
 				if(write_to == NULL)
 				{
@@ -293,11 +304,13 @@ int receive_response(int socket_desc)
 					my_close(client_socket);
 					return EXIT_FAILURE;
 				}
-				mode = 2;
 			}
+			mode = 2;
+			break;
 		case 2:
-			if(check_stream(buffer, "len=", value) == 0)
+			if(check_stream(receive_buffer, "len=", value) == 0)
 			{
+				fprintf(stderr, "Bin in Mode 2");
 				file_length_received = strtol(value, &end_ptr, 10);
 				if(value == end_ptr)
 				{
@@ -307,66 +320,72 @@ int receive_response(int socket_desc)
 					my_close(write_to);
 					return EXIT_FAILURE;
 				}
-				mode = 3;
 			}
-		case 3:
+			mode = 3;
+			break;
+		default:
 			if(write_to == NULL)
 			{
-				fprintf(stderr, "Something went wrong - now file was opened - %s\n",  strerror(errno));
+				fprintf(stderr, "Something went wrong - no file was opened - %s\n",  strerror(errno));
 				verbose_print(", %s(), line %d] No file was opened\n",  __func__, __LINE__);
 				my_close(client_socket);
 				return EXIT_FAILURE;
 			}
-		default: assert(0);
-		}
-	}
-
-	while(1)
-	{
-		count++;
-		if(MAXIMUM_SIZE < (file_length_received))
-		{
-			maximum_buffer = MAXIMUM_SIZE;
-		}
-		else
-		{
-			maximum_buffer = file_length_received;
-		}
-		verbose_print(", %s(), line %d] Read: %d @%d byte\n",  __func__, __LINE__, count, maximum_buffer);
-
-		/* read data from the socket */
-		bytes_read = fread(buffer, sizeof(char), maximum_buffer, client_socket);
-		bytes_received = bytes_received + maximum_buffer;
-
-		/* if not as many bytes were read as written, an error occured */
-		if ((int) fwrite(buffer, sizeof(char), bytes_read, write_to) != bytes_read)
-		{
-			my_close(write_to);
-			my_close(client_socket);
-			fprintf(stderr, "Error while writing to file");
-			return EXIT_FAILURE;
 		}
 
-		/* if the received bytes are the same as the file length, check if there is another record
-		 * and close everything here
-		 */
-		if(bytes_received == file_length_received)
+		if(mode == 3)
 		{
-			my_close(write_to);
-			my_close(client_socket);
-			logger("Done with file reading - look for the next record");
-			/* Next record */
-			mode = 1;
-			break;
-		}
+			bytes_read = 0;
+			bytes_received=0;
 
-		/* if there was a reading error, break */
-		if(ferror(client_socket) != 0)
-		{
-			my_close(write_to);
-			my_close(client_socket);
-			fprintf(stderr, "Error reading from stream");
-			return EXIT_FAILURE;
+			while(1)
+			{
+				count++;
+				if(MAXIMUM_SIZE < (file_length_received))
+				{
+					maximum_buffer = MAXIMUM_SIZE;
+				}
+				else
+				{
+					maximum_buffer = file_length_received;
+				}
+				verbose_print(", %s(), line %d] Read part: %d byte %d\n",  __func__, __LINE__, count, maximum_buffer);
+
+				/* read data from the socket */
+				bytes_read = fread(receive_buffer, sizeof(char), maximum_buffer, client_socket);
+				verbose_print(", %s(), line %d] Bytes_read called",  __func__, __LINE__);
+				bytes_received = bytes_received + maximum_buffer;
+				verbose_print(", %s(), line %d] Bytes_received called",  __func__, __LINE__);
+
+				/* if not as many bytes were read as written, an error occured */
+				if ((int) fwrite(receive_buffer, sizeof(char), bytes_read, write_to) != bytes_read)
+				{
+					my_close(write_to);
+					my_close(client_socket);
+					fprintf(stderr, "Error while writing to file");
+					return EXIT_FAILURE;
+				}
+
+				/* if the received bytes are the same as the file length, check if there is another record
+				 * and close everything here
+				 */
+				if(bytes_received >= file_length_received)
+				{
+					my_close(write_to);
+					/* Next record */
+					mode = 1;
+					break;
+				}
+
+				/* if there was a reading error, break */
+				if(ferror(client_socket) != 0)
+				{
+					my_close(write_to);
+					my_close(client_socket);
+					fprintf(stderr, "Error reading from stream");
+					return EXIT_FAILURE;
+				}
+			}
 		}
 	}
 	logger("Received EOF");
@@ -386,37 +405,28 @@ int receive_response(int socket_desc)
  */
 int check_stream(char *stream, const char *lookup, char *value)
 {
-	char *position, *new_position;
+	char *position;
+
+	verbose_print(", %s(), line %d] check_stream(): Bin in Check stream\n",  __func__, __LINE__);
 
 	if(stream != NULL)
 	{
-		position = strstr(lookup, value);
-		new_position = NULL; 
-		
-		if(position == NULL)
-		{
-			verbose_print(", %s(), line %d] Value not found in stream: %s\n",  __func__, __LINE__, stream);
-		}
-		else
-		{
-			position += strlen(lookup);
-			new_position = strchr(position, '\n');
-		}
+		position = strstr(stream, lookup);
 
-		if(new_position == NULL)
+		if(position != NULL)
 		{
-			verbose_print(", %s(), line %d] New line character not found, %s\n",  __func__, __LINE__, position);
-		}
+			position = position + strlen(lookup);
+			verbose_print(", %s(), line %d] check_stream(): Position ist nicht NULL\n",  __func__, __LINE__);
 
+
+		verbose_print(", %s(), line %d] Stream is not null.", __func__, __LINE__);
 		/* copy found value in given variable to pass */
-		memset(value, 0, strlen(value));
-		strncpy(value, position, (new_position - position));
+		memset(value, 0, MAXIMUM_SIZE);
+		strncpy(value, position, (strlen(position) - 1));
 
-		/* position the pointer after the value, so we can search the next item */
-		stream = stream + strlen(lookup) + strlen(value) + 1;
-
-		verbose_print(", %s(), line %d] check_stream(): check for %, Value %s\n",  __func__, __LINE__,  lookup, value);
+		verbose_print(", %s(), line %d] check_stream(): check for %s, Value %s\n",  __func__, __LINE__,  lookup, value);
 		return 0;
+		}
 	}
 
 	return -1;
@@ -456,28 +466,7 @@ static void usage(FILE *out, const char *prog_name, int exit_status)
 
 	exit(exit_status);
 }
-/**
- *
- * \brief logger Function for logging purposes only
- *
- * \param message - message passed to function is written
- *
- *
- */
-void logger(char *message)
-{
-	int j = 0;
-	if (verbose == TRUE)
-	{
-		j = fprintf(stdout, "%s: %s\n", prg_name, message);
 
-		/* if printig to stdout fails, a negative value is returned */
-		if(j < 0)
-		{
-			fprintf(stderr, "Can not print to stdout - %s\n",  strerror(errno));
-		}
-	}
-}
 /**
  *
  * \brief get_max Function getting max size
