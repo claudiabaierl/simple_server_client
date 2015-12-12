@@ -109,7 +109,6 @@ int main(int argc, const char * const argv[])
 		socket_desc = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
 		if (socket_desc == -1)
 		{
-			logger("socket");
 			continue;
 		}
 
@@ -117,7 +116,6 @@ int main(int argc, const char * const argv[])
 		connect_socket = connect(socket_desc, rp->ai_addr, rp->ai_addrlen);
 		if(connect_socket == -1)
 		{
-			logger("connect");
 			continue;
 		}
 
@@ -171,8 +169,7 @@ int send_message(int socket_desc, const char *user, const char *message, const c
 		message_desc = fdopen(socket_desc, "w");
 		if(message_desc == NULL)
 		{
-			fclose(message_desc);
-			logger("file open");
+			my_close(message_desc);
 			return EXIT_FAILURE;
 		}
 
@@ -181,14 +178,13 @@ int send_message(int socket_desc, const char *user, const char *message, const c
 		/*user field is required - don't have to check again if username was entered*/
 		/*check message data and send*/
 		/*only send image tag if image was given*/
-		if(image==NULL)
+		if(image == NULL)
 		{
 			verbose_print(", %s(), line %d] message =\"%s\n",  __func__, __LINE__, message);
 			send_message = fprintf(message_desc,"user=%s\n%s\n", user, message);
-				if (send_message ==-1)
+				if (send_message == -1)
 				{
-					fclose(message_desc);
-					logger("message");
+					my_close(message_desc);
 					return EXIT_FAILURE;
 				}
 		}
@@ -201,8 +197,7 @@ int send_message(int socket_desc, const char *user, const char *message, const c
 			send_message = fprintf(message_desc,"user=%s\nimg=%s\n%s\n",user, image, message);
 				if (send_message ==-1)
 				{
-					fclose(message_desc);
-					logger("message");
+					my_close(message_desc);
 					return EXIT_FAILURE;
 				}
 		}
@@ -212,18 +207,16 @@ int send_message(int socket_desc, const char *user, const char *message, const c
 		if (flush_check != 0)
 		{
 
-			fclose(message_desc);
-			logger("flush");
+			my_close(message_desc);
 			return EXIT_FAILURE;
 		}
 
 		if(shutdown(socket_desc, SHUT_WR) != 0)
 		{
 			fprintf(stderr, "%s: failed to close writing direction - %s\n", prg_name, strerror(errno));
-			logger("shutdown");
 			return EXIT_FAILURE;
 		}
-
+		my_close(message_desc);
 
 	return EXIT_SUCCESS;
 
@@ -258,7 +251,6 @@ int receive_response(int socket_desc)
 	if(client_socket == NULL)
 	{
 		fprintf(stderr, "%s: failed to open socket for reading - %s\n", prg_name,  strerror(errno));
-		logger("open file descriptor");
 		return EXIT_FAILURE;
 	}
 	verbose_print(", %s(), line %d] Client_Socket is open.\n",  __func__, __LINE__);
@@ -388,8 +380,9 @@ int receive_response(int socket_desc)
 			}
 		}
 	}
-	logger("Received EOF");
+	verbose_print(", %s(), line %d] EOF reached \n",  __func__, __LINE__);
 	my_close(client_socket);
+	my_close(write_to);
 
 	return EXIT_SUCCESS;
 
