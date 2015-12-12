@@ -6,9 +6,9 @@
  * @author: Claudia Baierl - ic14b003 <ic14b003@technikum-wien.at>
  * @author: Zübide Sayici - ic14b002 <ic14b002@technikum-wien.at>
  *
- * @version $Revision: xxx $
+ * @version $Revision: 358 $
  *
- * Last Modified: $Author: xxxxx $
+ * Last Modified: $Author: Claudia Baierl $
  */
 
 /*
@@ -90,22 +90,25 @@ int main(int argc, char *argv[])
 	check_parameters_server(argc, argv, &port);
 
 	memset(&hints, 0, sizeof(hints));
-	/* server connects to IPv4 address */
+	/* server connects to IPv4 address only */
 	hints.ai_family = AF_INET;
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = AI_PASSIVE;
 
 	y = 1;
 
+	/* retrieves information of addresses that the server may connect to */
 	check = getaddrinfo(NULL, port, &hints, &server);
 	if(check != 0)
 	{
+		/* if gettaddrinfo fails, the according error code is printed with gai_strerror */
 		fprintf(stderr, "%s: error getaddrinfo: %s\n", prg_name, gai_strerror(check));
 		return EXIT_FAILURE;
 	}
 
 	for (rp = server; rp != NULL; rp = rp->ai_next)
 	{
+		/* retrieve socket descriptor for connection */
 		socket_desc = socket(server->ai_family, server->ai_socktype, server->ai_protocol);
 		if(socket_desc == -1)
 		{
@@ -114,6 +117,7 @@ int main(int argc, char *argv[])
 			return EXIT_FAILURE;
 		}
 
+		/* socket options are set on API Level (SOL_SOCKET), and optval is nonzero as to enable boolean option; optlen is sizeof int */
 		if(setsockopt(socket_desc, SOL_SOCKET, SO_REUSEADDR, &y, sizeof(int)) == -1)
 		{
 			fprintf(stderr, "%s: error setsockopt %s\n", prg_name, strerror(errno));
@@ -148,6 +152,7 @@ int main(int argc, char *argv[])
 		return EXIT_FAILURE;
 	}
 
+	/* parent is not informed when child terminates and zombie state is not possible */
 	signal(SIGCHLD, signal_child);
 
 	/* loop until accept was successful */
@@ -176,6 +181,7 @@ int main(int argc, char *argv[])
 		/* fork child process for execution of business logic */
 		child = fork();
 
+		/* if fork failed -1 is returned */
 		if(child == -1)
 		{
 			close(new_socket_desc);
@@ -186,16 +192,19 @@ int main(int argc, char *argv[])
 		else if(child == 0)
 		{
 			close(socket_desc);
+			/* to replace stdin with the new socket descriptor */
 			if(dup2(new_socket_desc, 0) == -1)
 			{
 				close(new_socket_desc);
 				return EXIT_FAILURE;
 			}
+			/* to replace stdout with the new socket descriptor */
 			if(dup2(new_socket_desc, 1) == -1)
 			{
 				close(new_socket_desc);
 				return EXIT_FAILURE;
 			}
+			/* execute simple message server logic and terminate call of arguments with NULL */
 			if(execlp(PATHSERVERLOGIC, "simple_message_server_logic", NULL) == -1)
 			{
 				fprintf(stderr, "%s: execlp() failed: %s\n", prg_name, strerror(errno));
@@ -229,12 +238,16 @@ void check_parameters_server(int argc, char *argv[], const char **port)
 
 	struct option long_options[] =
 	{
+			/* flag is NULL so val is returned
+			 * [name, has_arg, flag, val]*/
 			{"port", 1, NULL, 'p'},
 			{"help", 0, NULL, 'h'},
+			/* last line of the array has to be filled with 0 */
 			{0, 0, 0, 0}
 	};
 
 	*port = NULL;
+
 
 	while ((j = getopt_long(argc, (char **const) argv, "p:h", long_options, NULL)) != -1)
 	{
@@ -261,6 +274,7 @@ void check_parameters_server(int argc, char *argv[], const char **port)
 		case 'h':
 			my_usage(stdout, EXIT_SUCCESS);
 			break;
+		/* if parameter given could not be found in the long_options array; "?" is returned then */
 		case '?':
 			my_usage(stderr, EXIT_FAILURE);
 			break;
@@ -289,7 +303,7 @@ void signal_child(int sig)
 {
 	/* to prevent warnings, no other use */
 	sig = sig;
-	/* wait for any child process and return immediately if no child has exited */
+	/* wait for any child process, do not store information and return immediately if no child has exited */
 	while(waitpid(-1, NULL, WNOHANG) > 0);
 }
 /**
@@ -302,7 +316,7 @@ void signal_child(int sig)
  *
  *
  */
-void my_usage(FILE * out, int exit_status)
+void my_usage(FILE *out, int exit_status)
 {
 	/*variable for error handling */
 	int check;
