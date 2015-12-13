@@ -41,7 +41,6 @@
 
 const char *prg_name;
 static int verbose = 0;
-static long int maximum;
 int status;
 
 /*
@@ -52,7 +51,6 @@ int status;
 static void usage(FILE *out, const char *prog_name, int exit_status);
 int send_message(int socket_desc, const char *user, const char *message, const char *image);
 int receive_response(int socket_desc);
-int get_max(void);
 void verbose_print(const char *format, ...);
 int check_stream(char *stream, const char *lookup, char *value);
 void my_close(FILE *fp);
@@ -174,6 +172,7 @@ int send_message(int socket_desc, const char *user, const char *message, const c
 		{
 			fprintf(stderr, "%s: failed open file for message %s\n", prg_name, strerror(errno));
 			my_close(message_desc);
+			fprintf(stderr, "Could not open descriptor: %s", strerror(errno));
 			return EXIT_FAILURE;
 		}
 
@@ -201,7 +200,7 @@ int send_message(int socket_desc, const char *user, const char *message, const c
 			verbose_print(", %s(), line %d] message =\"%s\n", __func__, __LINE__,message);
 			/* send the message to the stream */
 			send_message = fprintf(message_desc,"user=%s\nimg=%s\n%s\n",user, image, message);
-				if (send_message ==-1)
+				if (send_message == -1)
 				{
 					fprintf(stderr, "%s: failed to send message - %s\n", prg_name, strerror(errno));
 					my_close(message_desc);
@@ -218,15 +217,15 @@ int send_message(int socket_desc, const char *user, const char *message, const c
 			return EXIT_FAILURE;
 		}
 
-		/*block further sending*/
+		/*block further sending, receiving is still possible with SHUT_WR */
 		if(shutdown(socket_desc, SHUT_WR) != 0)
 		{
 			fprintf(stderr, "%s: failed to close writing direction - %s\n", prg_name, strerror(errno));
 			return EXIT_FAILURE;
 		}
 		
-		/*close the socket descriptor*/
-		my_close(message_desc);
+		/*can not close mesage descriptor here, or receiving won't be possible*/
+		//my_close(message_desc);
 
 	return EXIT_SUCCESS;
 
@@ -256,6 +255,8 @@ int receive_response(int socket_desc)
 	int count = 0;
 	int bytes_received = 0;
 	int bytes_read = 0;
+	int check_write;
+
 
 	/*open the file for reading*/
 	client_socket = fdopen(socket_desc, "r");
@@ -348,7 +349,9 @@ int receive_response(int socket_desc)
 
 			while(1)
 			{
+				/* only for logging */
 				count++;
+
 				if(MAXIMUM_SIZE < (file_length_received))
 				{
 					maximum_buffer = MAXIMUM_SIZE;
@@ -363,16 +366,18 @@ int receive_response(int socket_desc)
 				bytes_read = fread(receive_buffer, sizeof(char), maximum_buffer, client_socket);
 				verbose_print(", %s(), line %d] Bytes_read called",  __func__, __LINE__);
 				bytes_received = bytes_received + maximum_buffer;
-				verbose_print(", %s(), line %d] Bytes_received called",  __func__, __LINE__);
 
+				/* write to file */
+				check_write = (int) fwrite(receive_buffer, sizeof(char), bytes_read, write_to);
 				/* if not as many bytes were read as written, an error occurs */
-				if ((int) fwrite(receive_buffer, sizeof(char), bytes_read, write_to) != bytes_read)
+				if (check_write != bytes_read || check_write < bytes_read)
 				{
 					my_close(write_to);
 					my_close(client_socket);
-					fprintf(stderr, "Error while writing to file");
+					fprintf(stderr, "Error writing to file");
 					return EXIT_FAILURE;
 				}
+
 
 				/* if the received bytes are the same as the file length, check if there is 
 				* another record and close everything here */
@@ -397,7 +402,7 @@ int receive_response(int socket_desc)
 	}
 	verbose_print(", %s(), line %d] EOF reached \n",  __func__, __LINE__);
 	my_close(client_socket);
-	my_close(write_to);
+	//my_close(write_to);
 
 	return EXIT_SUCCESS;
 
@@ -409,7 +414,7 @@ int receive_response(int socket_desc)
  * \param lookup   value that is looked for
  * \param value  found value that is returned (return value!)
  *
- * \return      0 when successful and -1 if not successful
+ * \return      0 when successful (looked for phrase was found) and -1 if not successful
  */
 int check_stream(char *stream, const char *lookup, char *value)
 {
@@ -475,27 +480,6 @@ static void usage(FILE *out, const char *prog_name, int exit_status)
 	exit(exit_status);
 }
 
-/**
- *
- * \brief get_max Function getting max size
- *
- * \return EXIT_SUCCESS if no error occurs
- * \return EXIT_FAILURE if an error occurs
- *
- */
-int get_max(void)
-{
-
-	maximum = pathconf(".", _PC_NAME_MAX);
-	if(maximum == -1)
-	{
-		fprintf(stderr, "%s: getting max path failed - %s\n", prg_name,  strerror(errno));
-		return EXIT_FAILURE;
-	}
-
-	return EXIT_SUCCESS;
-
-}
 /**
  *
  * \brief verbose_print Function prints to stdout if -v is activated
