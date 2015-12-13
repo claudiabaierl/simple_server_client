@@ -17,6 +17,7 @@
 
 #include <stdio.h>
 #include <errno.h>
+#include <error.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
@@ -263,6 +264,7 @@ int receive_response(int socket_desc)
 	if(client_socket == NULL)
 	{
 		fprintf(stderr, "%s: failed to open socket for reading - %s\n", prg_name,  strerror(errno));
+		my_close(client_socket);
 		return EXIT_FAILURE;
 	}
 	verbose_print(", %s(), line %d] Client_Socket is open.\n",  __func__, __LINE__);
@@ -401,6 +403,7 @@ int receive_response(int socket_desc)
 		}
 	}
 	verbose_print(", %s(), line %d] EOF reached \n",  __func__, __LINE__);
+
 	my_close(client_socket);
 	//my_close(write_to);
 
