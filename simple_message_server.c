@@ -329,9 +329,22 @@ void my_usage(FILE *out, int exit_status)
 	{
 		fprintf(stderr, strerror(errno));
 	}
-	fflush(out);
-	fflush(stderr);
+	check = 0;
+	check = fflush(out);
 
+	if (check != 0)
+	{
+		fprintf(stderr, "Could not flush stdout: %s", strerror(errno));
+		return EXIT_FAILURE;
+	}
+	check = 0;
+	check = fflush(stderr);
+
+	if (check != 0)
+	{
+		fprintf(stderr, "Could not flush stderr: %s", strerror(errno));
+		return EXIT_FAILURE;
+	}
 	exit(exit_status);
 }
 
