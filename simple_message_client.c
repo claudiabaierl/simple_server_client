@@ -90,12 +90,15 @@ int main(int argc, const char * const argv[])
 
 	//client_info is set to 0
 	memset(&client_info, 0, sizeof(client_info));
-	client_info.ai_family = AF_UNSPEC; /*not specified if IPv4 or IPv6*/
-	client_info.ai_socktype = SOCK_STREAM; /*socket type = stream*/
+	/*not specified if IPv4 or IPv6 - both can be used*/
+	client_info.ai_family = AF_UNSPEC; 
+	/*socket type = tcp*/
+	client_info.ai_socktype = SOCK_STREAM; 
+	/* protocolype is automatically set (0) */
 	client_info.ai_protocol = 0;
 
-
-	check = getaddrinfo(server, port, &client_info, &set_info); /*get addrinfo structs - contains internet address etc.*/
+	/*get addrinfo structs for the given server and port - contains internet address etc.*/
+	check = getaddrinfo(server, port, &client_info, &set_info); 
 	if(check != 0)
 	{
 		fprintf(stderr, "%s: getaddrinfo failed: %s\n", prg_name, gai_strerror(check));
@@ -105,14 +108,14 @@ int main(int argc, const char * const argv[])
 	/* go through all he results and connect if possible - if not, try the next one */
 	for (rp = set_info; rp != NULL; rp = rp->ai_next)
 	{
-
+		/* get the socket file descriptor */
 		socket_desc = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
 		if (socket_desc == -1)
 		{
 			continue;
 		}
 
-
+		/* connect to the socket  with connect*/
 		connect_socket = connect(socket_desc, rp->ai_addr, rp->ai_addrlen);
 		if(connect_socket == -1)
 		{
@@ -165,7 +168,7 @@ int send_message(int socket_desc, const char *user, const char *message, const c
 	FILE *message_desc = NULL;
 
 
-		/*open file and associate it to the stream socket*/
+		/*open file and associate it to the stream socket -writing mode - stream is positioned at beginning of the file*/
 		message_desc = fdopen(socket_desc, "w");
 		if(message_desc == NULL)
 		{
@@ -181,6 +184,7 @@ int send_message(int socket_desc, const char *user, const char *message, const c
 		if(image == NULL)
 		{
 			verbose_print(", %s(), line %d] message =\"%s\n",  __func__, __LINE__, message);
+			/* send the message to the stream */
 			send_message = fprintf(message_desc,"user=%s\n%s\n", user, message);
 				if (send_message == -1)
 				{
@@ -193,7 +197,7 @@ int send_message(int socket_desc, const char *user, const char *message, const c
 		{
 			verbose_print(", %s(), line %d] img=\"%s\n",  __func__,__LINE__, image);
 			verbose_print(", %s(), line %d] message =\"%s\n", __func__, __LINE__,message);
-
+			/* send the message to the stream */
 			send_message = fprintf(message_desc,"user=%s\nimg=%s\n%s\n",user, image, message);
 				if (send_message ==-1)
 				{
@@ -211,11 +215,14 @@ int send_message(int socket_desc, const char *user, const char *message, const c
 			return EXIT_FAILURE;
 		}
 
+		/*block further sending*/
 		if(shutdown(socket_desc, SHUT_WR) != 0)
 		{
 			fprintf(stderr, "%s: failed to close writing direction - %s\n", prg_name, strerror(errno));
 			return EXIT_FAILURE;
 		}
+		
+		/*close the socket descriptor*/
 		my_close(message_desc);
 
 	return EXIT_SUCCESS;
@@ -247,6 +254,7 @@ int receive_response(int socket_desc)
 	int bytes_received = 0;
 	int bytes_read = 0;
 
+	/*open the file for reading*/
 	client_socket = fdopen(socket_desc, "r");
 	if(client_socket == NULL)
 	{
@@ -255,22 +263,25 @@ int receive_response(int socket_desc)
 	}
 	verbose_print(", %s(), line %d] Client_Socket is open.\n",  __func__, __LINE__);
 	mode = 0;
+	
+	/*read characters from stream and store them into receive_buffer*/
 	while(fgets(receive_buffer, MAXIMUM_SIZE, client_socket) != NULL)
 	{
 		switch(mode)
 		{
 		case 0:
-			verbose_print(", %s(), line %d] In Case 0, but not in if. \n",  __func__, __LINE__);
+		
+			/*check if "status=" was received*/
 			if(check_stream(receive_buffer, "status=", value) == 0)
 			{
-				verbose_print(", %s(), line %d] Mode 0\n",  __func__, __LINE__);
+				/*store received status into status variable*/
 				if(sscanf(receive_buffer,"status=%d",&status) == 0)
 				{
 					fprintf(stderr, "Failed to retrieve status. %s", strerror(errno));
 					my_close(client_socket);
 					return EXIT_FAILURE;
 				}
-
+				/*if status = 0 go ahead*/
 				if(status == 0)
 				{
 					mode = 1;
@@ -280,14 +291,13 @@ int receive_response(int socket_desc)
 					verbose_print(", %s(), line %d] Status: %d is invalid\n",  __func__, __LINE__, status);
 					fprintf(stderr, "Wrong status");
 				}
-
 			}
 			break;
 		case 1:
-			verbose_print(", %s(), line %d] Case 1\n",  __func__, __LINE__);
+			/*check if file was received*/
 			if(check_stream(receive_buffer, "file=", value) == 0)
 			{
-				verbose_print(", %s(), line %d] Mode 1\n",  __func__, __LINE__);
+				/*try to open a new file for writing*/
 				write_to = fopen(value, "w");
 				if(write_to == NULL)
 				{
@@ -297,12 +307,14 @@ int receive_response(int socket_desc)
 					return EXIT_FAILURE;
 				}
 			}
+			/*switch to next check*/
 			mode = 2;
 			break;
 		case 2:
+			/*check if "len=" was received*/
 			if(check_stream(receive_buffer, "len=", value) == 0)
 			{
-				fprintf(stderr, "Bin in Mode 2");
+				/*convert string to long integer*/
 				file_length_received = strtol(value, &end_ptr, 10);
 				if(value == end_ptr)
 				{
@@ -313,6 +325,7 @@ int receive_response(int socket_desc)
 					return EXIT_FAILURE;
 				}
 			}
+			/*switch to next check*/
 			mode = 3;
 			break;
 		default:
@@ -349,7 +362,7 @@ int receive_response(int socket_desc)
 				bytes_received = bytes_received + maximum_buffer;
 				verbose_print(", %s(), line %d] Bytes_received called",  __func__, __LINE__);
 
-				/* if not as many bytes were read as written, an error occured */
+				/* if not as many bytes were read as written, an error occurs */
 				if ((int) fwrite(receive_buffer, sizeof(char), bytes_read, write_to) != bytes_read)
 				{
 					my_close(write_to);
@@ -358,9 +371,8 @@ int receive_response(int socket_desc)
 					return EXIT_FAILURE;
 				}
 
-				/* if the received bytes are the same as the file length, check if there is another record
-				 * and close everything here
-				 */
+				/* if the received bytes are the same as the file length, check if there is 
+				* another record and close everything here */
 				if(bytes_received >= file_length_received)
 				{
 					my_close(write_to);
@@ -400,24 +412,24 @@ int check_stream(char *stream, const char *lookup, char *value)
 {
 	char *position;
 
-	verbose_print(", %s(), line %d] check_stream(): Bin in Check stream\n",  __func__, __LINE__);
+	verbose_print(", %s(), line %d] Bin in Check stream\n",  __func__, __LINE__);
 
 	if(stream != NULL)
 	{
+		/*current position is pointer of first occurence of lookup within stream*/
 		position = strstr(stream, lookup);
 
 		if(position != NULL)
 		{
 			position = position + strlen(lookup);
-			verbose_print(", %s(), line %d] check_stream(): Position ist nicht NULL\n",  __func__, __LINE__);
-
+			verbose_print(", %s(), line %d] Position ist nicht NULL\n",  __func__, __LINE__);
 
 		verbose_print(", %s(), line %d] Stream is not null.", __func__, __LINE__);
 		/* copy found value in given variable to pass */
 		memset(value, 0, MAXIMUM_SIZE);
 		strncpy(value, position, (strlen(position) - 1));
 
-		verbose_print(", %s(), line %d] check_stream(): check for %s, Value %s\n",  __func__, __LINE__,  lookup, value);
+		verbose_print(", %s(), line %d]: check for %s, Value %s\n",  __func__, __LINE__,  lookup, value);
 		return 0;
 		}
 	}
