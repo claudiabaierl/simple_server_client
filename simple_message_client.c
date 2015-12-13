@@ -6,7 +6,7 @@
  * @author: Claudia Baierl - ic14b003 <ic14b003@technikum-wien.at>
  * @author: Zuebide Sayici - ic14b002 <ic14b002@technikum-wien.at>
  *
- * @version $Revision: 512 $
+ * @version $Revision: 612 $
  *
  * Last Modified: $Author: Zuebide Sayici $
  */
@@ -27,7 +27,7 @@
 #include <arpa/inet.h>
 #include <stdarg.h>
 #include <assert.h>
-#include "simple_message_client_commandline_handling.h"
+#include <simple_message_client_commandline_handling.h>
 
 /*
  * ---------------------------------- defines ------------------------
@@ -116,6 +116,7 @@ int main(int argc, const char * const argv[])
 
 		/* connect to the socket  with connect*/
 		connect_socket = connect(socket_desc, rp->ai_addr, rp->ai_addrlen);
+		verbose_print(", %s(), line %d] Connect to socket: %d\n",  __func__, __LINE__, connect_socket);
 		if(connect_socket == -1)
 		{
 			continue;
@@ -137,7 +138,6 @@ int main(int argc, const char * const argv[])
 	freeaddrinfo(set_info);
 
 	send_message(socket_desc, user, message, image);
-	receive_response(socket_desc);
 
 	/*close the socket connection*/
 	close(socket_desc);
@@ -173,7 +173,6 @@ int send_message(int socket_desc, const char *user, const char *message, const c
 		{
 			fprintf(stderr, "%s: failed open file for message %s\n", prg_name, strerror(errno));
 			my_close(message_desc);
-			fprintf(stderr, "Could not open descriptor: %s", strerror(errno));
 			return EXIT_FAILURE;
 		}
 
@@ -222,11 +221,19 @@ int send_message(int socket_desc, const char *user, const char *message, const c
 		if(shutdown(socket_desc, SHUT_WR) != 0)
 		{
 			fprintf(stderr, "%s: failed to close writing direction - %s\n", prg_name, strerror(errno));
+			my_close(message_desc);
 			return EXIT_FAILURE;
 		}
-		
-		/*can not close mesage descriptor here, or receiving won't be possible*/
-		//my_close(message_desc);
+		verbose_print(", %s(), line %d] Shutdown \n",  __func__, __LINE__);
+
+		if(receive_response(socket_desc) == -1)
+		{
+			fprintf(stderr, "%s failed to read response - %s", prg_name, strerror(errno));
+			my_close(message_desc);
+			close(socket_desc);
+			return EXIT_FAILURE;
+		}
+	my_close(message_desc);
 
 	return EXIT_SUCCESS;
 
@@ -250,7 +257,6 @@ int receive_response(int socket_desc)
 	
 	char receive_buffer[MAXIMUM_SIZE];
 	char value[MAXIMUM_SIZE];
-	char *end_ptr;
 	int file_length_received = 0;
 	int maximum_buffer = 0;
 	int count = 0;
@@ -280,6 +286,7 @@ int receive_response(int socket_desc)
 			/*check if "status=" was received*/
 			if(check_stream(receive_buffer, "status=", value) == 0)
 			{
+				verbose_print(", %s(), line %d] Status was received. \n",  __func__, __LINE__);
 				/*store received status into status variable*/
 				if(sscanf(receive_buffer,"status=%d",&status) == 0)
 				{
@@ -295,6 +302,7 @@ int receive_response(int socket_desc)
 				else
 				{
 					verbose_print(", %s(), line %d] Status: %d is invalid\n",  __func__, __LINE__, status);
+					my_close(client_socket);
 					fprintf(stderr, "Wrong status");
 				}
 			}
@@ -303,6 +311,7 @@ int receive_response(int socket_desc)
 			/*check if file was received*/
 			if(check_stream(receive_buffer, "file=", value) == 0)
 			{
+				verbose_print(", %s(), line %d] File was received. \n",  __func__, __LINE__);
 				/*try to open a new file for writing*/
 				write_to = fopen(value, "w");
 				if(write_to == NULL)
@@ -312,27 +321,41 @@ int receive_response(int socket_desc)
 					my_close(client_socket);
 					return EXIT_FAILURE;
 				}
+				mode = 2;
 			}
-			/*switch to next check*/
-			mode = 2;
+			else
+			{
+				mode = 4;
+			}
+
 			break;
 		case 2:
 			/*check if "len=" was received*/
 			if(check_stream(receive_buffer, "len=", value) == 0)
 			{
-				/*convert string to long integer*/
-				file_length_received = strtol(value, &end_ptr, 10);
-				if(value == end_ptr)
+				verbose_print(", %s(), line %d] Length was received \n",  __func__, __LINE__);
+				/* get file length */
+				if(sscanf(value, "%d", &file_length_received) == 0)
 				{
 					fprintf(stderr, "Error converting file length to integer - %s\n",  strerror(errno));
-					verbose_print(", %s(), line %d] File length could not be converted to integer\n",  __func__, __LINE__);
+					verbose_print(", %s(), line %d] File length could not be read\n",  __func__, __LINE__);
 					my_close(client_socket);
 					my_close(write_to);
 					return EXIT_FAILURE;
 				}
+				/*switch to next check*/
+				mode = 3;
 			}
-			/*switch to next check*/
-			mode = 3;
+			else
+			{
+				mode = 4;
+			}
+
+			break;
+		case 4:
+			my_close(client_socket);
+			my_close(write_to);
+			return EXIT_SUCCESS;
 			break;
 		default:
 			if(write_to == NULL)
@@ -370,13 +393,20 @@ int receive_response(int socket_desc)
 				bytes_received = bytes_received + maximum_buffer;
 
 				/* write to file */
-				check_write = (int) fwrite(receive_buffer, sizeof(char), bytes_read, write_to);
+				check_write = (int)fwrite(receive_buffer, sizeof(char), bytes_read, write_to);
 				/* if not as many bytes were read as written, an error occurs */
-				if (check_write != bytes_read || check_write < bytes_read)
+				if (check_write != bytes_read)
 				{
-					my_close(write_to);
 					my_close(client_socket);
+					my_close(write_to);
 					fprintf(stderr, "Error writing to file");
+					return EXIT_FAILURE;
+				}
+				if(check_write < bytes_read)
+				{
+					my_close(client_socket);
+					my_close(write_to);
+					fprintf(stderr, "Error in fwrite");
 					return EXIT_FAILURE;
 				}
 
@@ -405,8 +435,6 @@ int receive_response(int socket_desc)
 	verbose_print(", %s(), line %d] EOF reached \n",  __func__, __LINE__);
 
 	my_close(client_socket);
-	//my_close(write_to);
-
 	return EXIT_SUCCESS;
 
 }
