@@ -172,6 +172,7 @@ int send_message(int socket_desc, const char *user, const char *message, const c
 		message_desc = fdopen(socket_desc, "w");
 		if(message_desc == NULL)
 		{
+			fprintf(stderr, "%s: failed open file for message %s\n", prg_name, strerror(errno));
 			my_close(message_desc);
 			return EXIT_FAILURE;
 		}
@@ -188,6 +189,7 @@ int send_message(int socket_desc, const char *user, const char *message, const c
 			send_message = fprintf(message_desc,"user=%s\n%s\n", user, message);
 				if (send_message == -1)
 				{
+					fprintf(stderr, "%s: failed to send message - %s\n", prg_name, strerror(errno));
 					my_close(message_desc);
 					return EXIT_FAILURE;
 				}
@@ -201,6 +203,7 @@ int send_message(int socket_desc, const char *user, const char *message, const c
 			send_message = fprintf(message_desc,"user=%s\nimg=%s\n%s\n",user, image, message);
 				if (send_message ==-1)
 				{
+					fprintf(stderr, "%s: failed to send message - %s\n", prg_name, strerror(errno));
 					my_close(message_desc);
 					return EXIT_FAILURE;
 				}
@@ -210,7 +213,7 @@ int send_message(int socket_desc, const char *user, const char *message, const c
 		flush_check = fflush(message_desc);
 		if (flush_check != 0)
 		{
-
+			fprintf(stderr, "%s: failed to flush socket - %s\n", prg_name, strerror(errno));
 			my_close(message_desc);
 			return EXIT_FAILURE;
 		}
