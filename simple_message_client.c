@@ -137,7 +137,12 @@ int main(int argc, const char * const argv[])
 	/* is no longer needed */
 	freeaddrinfo(set_info);
 
-	send_message(socket_desc, user, message, image);
+	if(send_message(socket_desc, user, message, image) != 0)
+	{
+		fprintf(stderr, "%s: Failure in sending message.", prg_name);
+		close(socket_desc);
+		return EXIT_FAILURE;
+	}
 
 	/*close the socket connection*/
 	close(socket_desc);
@@ -233,6 +238,7 @@ int send_message(int socket_desc, const char *user, const char *message, const c
 			close(socket_desc);
 			return EXIT_FAILURE;
 		}
+
 	my_close(message_desc);
 
 	return EXIT_SUCCESS;
@@ -270,6 +276,7 @@ int receive_response(int socket_desc)
 	if(client_socket == NULL)
 	{
 		fprintf(stderr, "%s: failed to open socket for reading - %s\n", prg_name,  strerror(errno));
+		/* no leaks if socket is not closed, but we do it to be on the safe side */
 		my_close(client_socket);
 		return EXIT_FAILURE;
 	}
@@ -402,6 +409,7 @@ int receive_response(int socket_desc)
 					fprintf(stderr, "Error writing to file");
 					return EXIT_FAILURE;
 				}
+				/* error handling for fwrite */
 				if(check_write < bytes_read)
 				{
 					my_close(client_socket);
@@ -432,9 +440,10 @@ int receive_response(int socket_desc)
 			}
 		}
 	}
+	my_close(client_socket);
 	verbose_print(", %s(), line %d] EOF reached \n",  __func__, __LINE__);
 
-	my_close(client_socket);
+
 	return EXIT_SUCCESS;
 
 }
@@ -550,14 +559,21 @@ void verbose_print(const char *format, ...)
 void my_close(FILE *fp)
 {
 	int check;
+	/* reset errno to avoid wrong errors to be passed */
+	errno = 0;
 
 	check = fclose(fp);
 
 	if(check != 0)
 	{
 		fprintf(stderr, strerror(errno));
-		verbose_print(", %s(), line %d] Error closing file: %s\n",  __func__, __LINE__, fp);
+		verbose_print(", %s(), line %d] Error closing file.\n",  __func__, __LINE__);
 		exit(EXIT_FAILURE);
+	}
+	/* for our information only */
+	if(errno == EBADF)
+	{
+		fprintf(stderr, "Underlying file descriptor is bad.");
 	}
 }
 
