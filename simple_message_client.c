@@ -359,6 +359,7 @@ int receive_response(int socket_desc)
 			}
 
 			break;
+			/* if looked for values were not found with check_stream */
 		case 4:
 			my_close(client_socket);
 			my_close(write_to);
@@ -420,7 +421,7 @@ int receive_response(int socket_desc)
 
 
 				/* if the received bytes are the same as the file length, check if there is 
-				* another record and close everything here */
+				* another record and close file to write to*/
 				if(bytes_received >= file_length_received)
 				{
 					my_close(write_to);
@@ -475,6 +476,8 @@ int check_stream(char *stream, const char *lookup, char *value)
 		verbose_print(", %s(), line %d] Stream is not null.", __func__, __LINE__);
 		/* copy found value in given variable to pass */
 		memset(value, 0, MAXIMUM_SIZE);
+		/* copy position into value, but only the length of position minus the terminating byte
+		 * - for value to be passed to calling receive_response function*/
 		strncpy(value, position, (strlen(position) - 1));
 
 		verbose_print(", %s(), line %d]: check for %s, Value %s\n",  __func__, __LINE__,  lookup, value);
